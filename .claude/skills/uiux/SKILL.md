@@ -55,6 +55,9 @@ Check every element, new or existing, for these. Fix them before calling the scr
 - **Hand-rolled** where a component or pattern already exists (a custom modal instead of `Dialog`).
 - **Wrong component**, or a component used against its docs (`Select` where search needs `Combobox`).
 - **Correct, but a prop, variant or composition would lift it.** Use it.
+- **Flat or upside-down hierarchy:** a heading the same size as, or smaller than, what it heads;
+  every element at one size; every button drawn as big as the main action. A screen like that reads
+  as dense and overwhelming even with a few lines on it.
 
 ## shadcn first, customised in place
 
@@ -80,6 +83,14 @@ Check every element, new or existing, for these. Fix them before calling the scr
 - Content has a sensible max-width. Related items are grouped. Secondary content is disclosed
   progressively (`Collapsible`, `Tabs`, `Accordion`, a sheet).
 - Anything that can be deferred is, to cut noise on first view.
+- **One size hierarchy for every element, not just text.** Define a handful of levels (title,
+  section, body, secondary, caption) in the patterns doc, each setting text size, the height a
+  control is drawn, icon size and spacing together, and map the type scale to them (in Tailwind,
+  redefine `--text-*` so `text-sm` means *secondary* everywhere). A button belongs to the level of
+  the text beside it. A heading is always bigger than what it heads: never a small grey label above
+  bigger text. One main action per screen is drawn large; the rest step down.
+- Check by screenshot at the target width: where does the eye land first, second, third? If
+  everything competes, step something down a level before adding space.
 
 **States and feedback**
 - Every async surface has a `Skeleton` shaped like the content while it loads, and `Empty` when
@@ -148,11 +159,19 @@ Check every element, new or existing, for these. Fix them before calling the scr
 **Reach and layout**
 - The primary action sits in the bottom third, reachable one-handed. Nothing critical goes in a top
   corner.
-- Touch targets are at least 44 to 48 px, with 8 px between them. One column.
+- Touch targets are at least 44 to 48 px, with 8 px between them. One column. **The target is not
+  the drawn size:** draw a chip at 32 px and a secondary or icon button at 40, and extend each to 48
+  with an invisible, centred `::after` (a `tap` utility), as Android does. Drawing every control at
+  the full 48 makes a phone screen heavy and crowded. Teach the test that checks target sizes to read
+  the `::after` box.
 - Full-screen layouts use `dvh`, not `vh`. Every fixed element (tab bar, floating button, toasts,
   banners) accounts for the safe areas and for the others. Use a z-index scale, not ad-hoc values.
-- The keyboard never covers the focused input.
-- Long names wrap or truncate with a path to the full text. A row of chips wraps or shows *+3*.
+- The keyboard never covers the focused input. Let one thing handle the keyboard: when the page
+  already resizes for it (`interactive-widget=resizes-content`, Android's `adjustResize`), turn off a
+  sheet library's own resizing (vaul's `repositionInputs={false}`), or a sheet can stay at half
+  height once the keyboard closes.
+- Long names wrap or truncate with a path to the full text. A row of chips scrolls sideways in one
+  line, or shows *+3*; it never wraps into a second row of pills.
 
 **Touch only**
 - Nothing depends on hover or a keyboard shortcut. `HoverCard`, `Kbd`, `Menubar`,
