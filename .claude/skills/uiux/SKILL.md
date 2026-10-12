@@ -1,134 +1,202 @@
 ---
 name: uiux
-description: UI/UX expert for shadcn/ui component selection and audit in ztsia-portfolio. Mode 1 suggests components for a plan; Mode 2 audits existing components.
+description: How to build a screen with shadcn/ui and keep it inside the project's shared patterns. Use when choosing components and layout for a screen, building one, or checking one before it is done. Read the project's patterns doc, then the component index and only the docs it shortlists. Covers hierarchy, states, feedback, accessibility and theming, plus a phone checklist (thumb reach, touch targets, sheets, undo, the back gesture, offline, how money is shown) when the project is phone-first.
 ---
 
-# UI/UX Expert — shadcn/ui Component Advisor
+# UI/UX: shadcn/ui and one set of patterns
 
-You are a **professional UI/UX expert** with deep expertise in **shadcn/ui components**. Your component knowledge comes from two sources in `.claude/skills/uiux/docs/`:
+You are a senior product designer who ships shadcn/ui. This skill is knowledge, not a mode: loading
+it gives you what to do and what must be true. It never asks which mode to run in, and it never
+produces an audit report for someone else to act on. Build or fix the screen, hold it to the
+checklist, and correct what fails.
 
-1. `components-index.md` — a quick-reference index of all available components (read first, always)
-2. Individual `<component>.md` docs — full documentation with examples and advanced props (read only for shortlisted components)
+You have two jobs: pick the right components, and keep every screen inside the project's shared
+patterns. **The second matters more.** Screens that each work well can still add up to an app that
+does not hang together.
 
-**Never read individual docs speculatively.** Always read the index first, shortlist, then deep-read only the docs you need.
+## Use it when
 
----
+- choosing components and layout for a screen or feature
+- building or changing a screen
+- checking a screen before calling it done
 
-## How to Activate
+## Sources, in this order
 
-The user will invoke this skill in one of two ways:
+1. **The project's shared patterns doc**, named in its `CLAUDE.md`. It holds the tokens, navigation,
+   and the building blocks: rows, forms, sheets, toasts, status cards, and the empty, loading and
+   error states. **A screen uses these. It never invents its own row, form, sheet, empty, loading or
+   error state.** If a screen truly needs a new pattern, add it to that doc first.
+2. **The project's screen and flow docs**, if it has them: what each screen holds and where it leads.
+3. **The components already in the repo** (usually `components/ui/` and a folder of composed blocks).
+   Read a component's source before recommending it. The source is the documentation, and its props
+   are the real ones.
+4. **`.claude/skills/uiux/docs/components-index.md`**, read in full. Shortlist with its *When to
+   use* column and its disambiguation notes. Then read each shortlisted `<component>.md` in full:
+   variants, props, examples and sub-components. Never open a doc speculatively.
+5. **`.claude/skills/uiux/docs/instructions/`** for theming, dark mode and `components.json`.
+6. **Other skills** the project has, for charts, the official shadcn skill (current APIs), and so on.
 
-1. **Mode 1 — Suggest** → The user provides an implementation plan (or feature description). You recommend which shadcn/ui components to use, including advanced usage patterns and examples.
-2. **Mode 2 — Audit** → The user points you to an existing component/page file. You analyze its UI implementation and suggest improvements — even if it's already correct, look for ways to elevate the UI/UX.
+## Building a screen
 
-If the user doesn't specify a mode, ask them which mode they want.
+1. List every UI element the screen needs or implies, including empty, loading, error and offline.
+2. Map each element to a shared pattern, then to components, using the reading order above.
+3. Compose existing components before building anything custom. Flag any need shadcn does not
+   cover, and compose it from shadcn primitives. A need no pattern covers goes into the patterns
+   doc first.
+4. Build it. Then hold every element to the checklists below and fix what fails. Where there is
+   room, push past correct towards polished, but never outside the shared patterns.
 
-$ARGUMENTS
+## What drift looks like
 
----
+Check every element, new or existing, for these. Fix them before calling the screen done:
 
-## Mode 1: Suggest Components for an Implementation Plan
+- **Pattern drift:** it solves an already-solved problem differently from the patterns doc. Fix it
+  even when it looks fine.
+- **Hand-rolled** where a component or pattern already exists (a custom modal instead of `Dialog`).
+- **Wrong component**, or a component used against its docs (`Select` where search needs `Combobox`).
+- **Correct, but a prop, variant or composition would lift it.** Use it.
 
-### Steps
+## shadcn first, customised in place
 
-1. **Read the implementation plan** carefully. Identify every UI element mentioned or implied (buttons, forms, lists, modals, dropdowns, cards, tables, navigation, feedback, overlays, etc.).
+- Every building block starts from a shadcn component. Add it with the CLI (`npx shadcn@latest add`,
+  with `--dry-run` before overwriting a customised one).
+- When its defaults do not fit, edit the shadcn file itself. Put a note on line 1:
+  `// <project>: what changed`. An upgrade can then keep the change.
+- Never write a parallel, hand-rolled version of something shadcn has.
+- `className` at a call site is for layout only.
+- A shared pattern is a composition of these components, not a replacement for them.
+- Compose compound components (`Card` with `CardHeader` and `CardContent`). Keep their ARIA, and let
+  them manage focus.
+- Forms: `Field`, `FieldLabel` and `FieldError`, with the form library's state and a schema
+  validator.
+- Mount `Sonner`'s `<Toaster />` once, in the app layout.
+- Charts: the `Chart` wrapper with a `chartConfig` that names token colours. No inline colours.
 
-2. **Survey the component index** — Read `.claude/skills/uiux/docs/components-index.md` in full. Use the "When to use" and "Key variants / features" columns to map every UI need to a shortlist of candidate components. Pay close attention to the disambiguation notes (e.g. choosing between overlays, selects, loading states, tables).
+## Checklist: every project
 
-3. **Deep-read only the shortlisted docs** — For each candidate from the index, read its full `.md` doc from `.claude/skills/uiux/docs/`. Read the **entire** doc, including:
-   - All **variants** and **props** (sizes, styles, states)
-   - All **examples** (especially advanced compositions and real-world patterns)
-   - All **sub-components** and how they compose together
+**Layout and hierarchy**
+- The primary action is clearly dominant. The layout guides the eye (F-pattern for content, Z for
+  sparse pages).
+- Content has a sensible max-width. Related items are grouped. Secondary content is disclosed
+  progressively (`Collapsible`, `Tabs`, `Accordion`, a sheet).
+- Anything that can be deferred is, to cut noise on first view.
 
-4. **Produce a component recommendation table** with this format:
+**States and feedback**
+- Every async surface has a `Skeleton` shaped like the content while it loads, and `Empty` when
+  there is no data: one line on what will appear, plus the action that fills it.
+- Every action gets a visible response: an optimistic update, a toast (`Sonner`), a disabled button
+  with a `Spinner` while it works, or an error in `Alert` or `Field`.
+- Errors say what happened and what to do next, sit next to their cause (linked with
+  `aria-describedby`), never lose the user's input, and move focus to the first problem on a
+  failed submit.
+- A button that starts slow work shows it is working and ignores a second tap.
+- A disabled control looks disabled and says why nearby. Prefer an enabled button that explains.
+- Reserve space for anything that loads, so nothing jumps.
 
-   | UI Need | Recommended Component(s) | Why | Key Props / Variants |
-   |:--|:--|:--|:--|
-   | e.g. "Delete confirmation" | `AlertDialog` | Destructive action requires confirmation | `AlertDialogAction` with `variant="destructive"` |
+**Components**
+- Use the best variant for the context (`destructive`, `outline`, `ghost`) and use advanced props
+  where they help (`size`, `asChild`).
+- Compose for richness (`Command` with `Popover`, `Field` around inputs, `InputGroup` with a
+  prefix). Group related actions (`ButtonGroup`, `ToggleGroup`, `DropdownMenu`).
+- `AlertDialog` only to confirm what cannot be undone. Give every dialog and sheet a title.
 
-5. **Apply the UX & Enhancement Checklist** — Work through every item in the checklist below. Present findings as a **"UI/UX Enhancements"** section with concrete suggestions and usage snippets for non-obvious compositions.
+**Forms**
+- A visible label on every input. A placeholder is an example, never the label.
+- The right `inputMode`, `enterKeyHint` and `autocomplete` (`one-time-code` for a sign-in code).
+- Validate on blur and on submit, show the message under the field, and keep submit enabled.
+- Offer what was entered before instead of asking again.
 
-6. **Flag any UI needs that shadcn/ui does NOT cover**, and suggest a composition approach using shadcn primitives, or note that a custom component is needed.
+**Accessibility**
+- Every interactive element is reachable and usable by keyboard or switch, in a logical order, with
+  a visible focus ring (2 px, 3:1 against its surroundings). Never `outline: none` without a
+  replacement.
+- Every icon-only button has an `aria-label`.
+- Status is text or an icon as well as colour. Contrast meets WCAG AA in light and dark.
+- Run axe (or the project's accessibility check) on the screen and fix what it finds.
+- Respect `prefers-reduced-motion`.
 
-7. **Check the instructions docs** (`.claude/skills/uiux/docs/instructions/`) for theming and dark mode rules. Remind the user of relevant constraints.
+**Theming**
+- Semantic tokens only (`bg-background`, `text-muted-foreground`). No `bg-white`, `text-gray-500`
+  or hex values. Define colour pairs (`primary` with `primary-foreground`) in full for light and
+  dark.
+- Check the screen in both light and dark. If the project has several themes, check at least the
+  lightest and the darkest. Setup is in `.claude/skills/uiux/docs/instructions/darkmode.md`.
 
----
+**Motion**
+- CSS transitions at 150 to 250 ms, easing out on entry. Animate `transform` and `opacity` only.
+  Motion explains a change. It never decorates.
+- Required state never waits on `animationend`.
 
-## Mode 2: Audit an Existing Component
+**Content**
+- Dates are unambiguous (*3 Oct*, not *03/10*) and relative when recent. Body text is at least
+  16 px, secondary text never below 12 px.
 
-### Steps
+**Performance**
+- Long lists are virtualised with stable row heights. Images lazy-load inside a fixed aspect ratio
+  (`AspectRatio`).
 
-1. **Read the target file** and understand its full UI structure — what it renders, how it handles state, and what HTML/JSX elements it uses.
+**Numbers and money, where the app shows them**
+- One format everywhere: currency prefix, thousands separators, `tabular-nums` so columns line up.
+- Gains and losses are shown by sign and icon as well as colour.
+- Never truncate an amount. Truncate the label next to it, and give a path to the full text.
+- Amount inputs use `inputMode="decimal"` and are parsed as text into integer minor units, never
+  through a float.
+- A glance surface stays at a few figures.
 
-2. **Identify every UI element** in the component. For each, classify it as one of:
-   - ✅ **Using shadcn/ui correctly** — suitable component, used properly
-   - 🔷 **Using shadcn/ui correctly, but can be elevated** — correct component, but not leveraging advanced props, variants, or patterns from the docs
-   - ⚠️ **Using shadcn/ui, but could use a better component** — e.g., using `Select` when `Combobox` would be better for search
-   - ⚠️ **Using shadcn/ui, but used incorrectly** — e.g., missing required sub-components, wrong variant, accessibility issues
-   - ❌ **Manual implementation where shadcn/ui has a ready component** — e.g., hand-rolled modal instead of `Dialog`
+## Checklist: when the project is phone-first
 
-3. **Survey the component index** — Read `.claude/skills/uiux/docs/components-index.md`. Cross-reference every UI element against the index to spot missing components, better alternatives, or ❌ patterns.
+**Reach and layout**
+- The primary action sits in the bottom third, reachable one-handed. Nothing critical goes in a top
+  corner.
+- Touch targets are at least 44 to 48 px, with 8 px between them. One column.
+- Full-screen layouts use `dvh`, not `vh`. Every fixed element (tab bar, floating button, toasts,
+  banners) accounts for the safe areas and for the others. Use a z-index scale, not ad-hoc values.
+- The keyboard never covers the focused input.
+- Long names wrap or truncate with a path to the full text. A row of chips wraps or shows *+3*.
 
-4. **Deep-read only the relevant docs** — For each component you're auditing or recommending, read its full `.md` doc from `.claude/skills/uiux/docs/`. The examples section often shows advanced patterns that elevate basic usage.
+**Touch only**
+- Nothing depends on hover or a keyboard shortcut. `HoverCard`, `Kbd`, `Menubar`,
+  `NavigationMenu`, `Resizable`, a `Sidebar`, and a `Tooltip` as the only label do not belong. A
+  data table is for desktop. Use list rows.
+- Never make dragging the only way to do something. Give a tap alternative.
 
-5. **Produce an audit report** with this format:
+**Navigation**
+- One navigation, as the patterns doc defines it. No second one.
+- The back gesture does what is expected on every screen, closing the top sheet or dialog first.
+  Every overlay registers with the back handler.
+- No dead ends. Each screen answers one question or supports one decision.
 
-   ### Audit Summary
+**Sheets and confirmation**
+- Bottom sheets (`Drawer`) for choices and short forms. Not `Sheet` from the side, and nothing
+  important behind a `Popover`.
+- **Undo instead of confirm:** act at once, then offer *Undo* in a `Sonner` toast (auto-dismiss
+  around 6 s, never piling up). This applies to delete and other reversible edits. Keep
+  `AlertDialog` for the irreversible.
 
-   | Element | Current Implementation | Verdict | Recommendation |
-   |:--|:--|:--|:--|
-   | e.g. Delete button | Custom `<button>` with `onClick` confirm | ❌ Replace | Use `AlertDialog` for destructive confirmation |
-   | e.g. Submit button | `Button` with default variant | 🔷 Elevate | Add loading state with `disabled` + `Spinner`, use icon prefix |
+**Feedback**
+- Optimistic updates. A light haptic on commit if the shell offers one, never on scroll. A toast
+  only when the result is not visible on screen.
+- Loading uses a `Skeleton`, never a full-screen spinner. Pull-to-refresh wherever data syncs.
 
-   ### Detailed Recommendations
+**Offline**
+- Being offline is a banner, not an error. Reads work from cache and writes queue. Say what is
+  waiting to send. Never lose the user's input.
 
-   For each 🔷, ⚠️, or ❌ item, provide:
-   - **What's wrong / what can be improved** (concisely)
-   - **What to use instead or how to enhance** (with component name, props, variants)
-   - **Code snippet** showing the improved usage pattern, referencing examples from the docs
+**Accessibility on a phone**
+- Check it with a screen reader (TalkBack or VoiceOver) in mind: amounts read as words, a badge's
+  change is announced once as words (*5 to review*), toasts are announced politely.
+- Text scales with the system font size to at least 1.5x without clipping.
+- Swiping sideways on main content is reserved for the back gesture. No auto-advancing carousels.
 
-6. **Apply the UX & Enhancement Checklist** — Work through every item in the checklist below. Present findings as a **"UI/UX Enhancements"** section with before/after snippets. Cover even ✅ items if an enhancement opportunity exists.
+**Theme**
+- Light and dark follow the phone from the first screen.
+- The status bar and system bars follow the theme, edge to edge, with content inside the safe areas.
 
----
+## Universal rules
 
-## UX & Enhancement Checklist
-
-Apply this checklist in **both modes**. Do not explain the theory — apply it and flag issues or opportunities directly.
-
-### Layout & UX (macro)
-
-- **Visual hierarchy** — Is the primary action/CTA clearly dominant and above the fold?
-- **Reading pattern** — Does the layout guide the eye correctly? F-pattern for content-heavy pages; Z-pattern for landing/sparse pages.
-- **Layout & grid** — Is content constrained to a sensible max-width? Are columns used to avoid endless horizontal stretching on wide screens?
-- **Grouping & IA** — Are related items visually grouped? Is progressive disclosure used for complex or secondary content (`Collapsible`, `Tabs`, `Sheet`, `Accordion`)?
-- **Cognitive load** — Can anything be hidden or deferred to reduce noise on first view?
-- **Empty & loading states** — Does every async surface have `Skeleton`/`Spinner` during load and `Empty` when there's no data?
-- **Feedback loops** — Does every user action have a visible response (toast via `Sonner`, disabled+`Spinner` on submit, error via `Alert`/`Field`)?
-- **Hover & focus states** — Are all interactive elements using shadcn components that handle hover and focus rings correctly? No `outline: none` without a replacement.
-- **Keyboard navigation** — Can the full flow be completed by Tab/Enter alone? Are focusable elements in a logical order?
-
-### Component Elevation (micro)
-
-- **Richer variants** — Is the component using the best variant for the context (e.g. `destructive`, `outline`, `ghost`)?
-- **Advanced props** — Are props being left at default that could improve UX (e.g. `size`, `disabled`, `asChild`)?
-- **Composition patterns** — Can components be composed for a richer experience (e.g. `Command` + `Popover`, `Field` wrapping inputs, `InputGroup` with prefix/suffix)?
-- **Micro-interactions** — Would `Collapsible`, `Accordion`, or animated transitions improve the feel?
-- **Contextual info** — Would `Tooltip`, `HoverCard`, or `Popover` add helpful context without cluttering the UI?
-- **Keyboard shortcuts** — Does `Kbd` document shortcuts where relevant?
-- **Grouped actions** — Would `ButtonGroup`, `ToggleGroup`, or `DropdownMenu` clean up multiple related actions?
-
-### Quality
-
-- **Theming** — Any hardcoded colors (`bg-white`, `text-gray-500`, hex values) that would break on theme/dark mode switch?
-- **Accessibility** — Missing labels, keyboard navigation issues, or focus management problems visible from the code?
-
----
-
-## Universal Rules
-
-- **Always read `components-index.md` first** — never open individual docs speculatively. Use the index to shortlist, then deep-read only those docs.
-- **Read the FULL component doc before recommending it** — including all examples, advanced props, and variant options.
-- **Go beyond "correct"** — your job is not just to verify correctness, but to push the UI/UX toward a professional, polished, premium standard.
-- **Use semantic color tokens** — never recommend hardcoded Tailwind colors like `bg-white`, `text-gray-500`, etc.
-- **Prioritize composition** — shadcn/ui components are designed to be composed. Recommend combining primitives before suggesting custom builds.
-- **Be specific** — cite exact component names, sub-component names, prop names, and variant values from the docs.
+- **Read the pattern doc, the index and the full component doc (or its source)** before
+  recommending anything.
+- **Compose existing components** before building a custom one.
+- **Be specific:** component, sub-component, prop and variant names exactly as in the docs.
+- **Use semantic colour tokens.** Never hardcoded colours.
+- **Push past correct toward polished**, but never outside the shared patterns.

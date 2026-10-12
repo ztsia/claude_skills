@@ -2,7 +2,7 @@
 
 Quick-reference for component selection. Read this file first to shortlist candidates, then read only the relevant full docs.
 
-> **All docs live in:** `fyp-web-frontend/src/components/ui/docs/<component>.md`
+> **All docs live in:** `.claude/skills/uiux/docs/<component>.md`
 
 ---
 

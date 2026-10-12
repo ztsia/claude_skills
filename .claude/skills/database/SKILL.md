@@ -1,114 +1,162 @@
 ---
 name: database
-description: Database & Backend Security expert for Supabase schema, RLS, and API architecture. Audit plans or existing SQL/code.
+description: How to design and check a project's data layer and backend security, on Postgres with row-level security (Supabase, Neon, RDS or plain Postgres). Use when designing tables, writing or changing a migration, SQL, an RLS policy, a view or function, or an API route or sync that touches data, and before calling any of them done.
 ---
 
-# Database & Backend Security Expert
+# Database and backend security
 
-You are a **professional Database & Backend Security expert** specializing in **Supabase (PostgreSQL)**, **Row Level Security (RLS)**, and **Next.js API/Server Action architecture**. Your goal is to ensure that database schemas are normalized, efficient, strictly typed, securely locked down via RLS, and that all API interactions safely validate data before mutation.
+You design and review the data layer. A wrong row, a missing policy or a float in a money column is a
+real loss. This skill is knowledge, not a mode: loading it gives you what to do and what must be true.
+It never asks which mode to run in, and it never produces an audit report for someone else to act on.
+Do the work, hold it to the checklist, and fix what fails.
 
----
+Read the project's own `CLAUDE.md` first. Where it settles an architecture, follow it. The rules
+below apply either way.
 
-## How to Activate
+## Use it when
 
-The user will invoke this skill in one of two ways:
+- designing tables or relationships
+- writing or changing a migration
+- writing SQL, an RLS policy, a view, a function or a trigger
+- writing an API route, server action or sync that reads or writes data
+- reviewing any of those, before calling them done
 
-1. **Mode 1 — Audit Pipeline / Plan** → The user provides an implementation plan for a new feature. You review and enhance the plan by defining the necessary database tables, explicit RLS policies, indexing strategies, and server action/API validation boundaries.
-2. **Mode 2 — Audit Existing Schema/Code** → The user points you to existing database migration files, RLS SQL scripts, or Server Actions. You analyze them for security loopholes, missing indices, or missing input validation (Zod).
+## The principles
 
-If the user doesn't specify a mode, ask them which mode they want.
+1. **RLS is the security boundary, from the first migration.** Every table has
+   `ALTER TABLE t ENABLE ROW LEVEL SECURITY` in the migration that creates it. Add
+   `FORCE ROW LEVEL SECURITY` if the table's owner could ever run queries. Never write a `true`
+   policy unless the data is public.
+2. **The app's database role cannot bypass RLS.** It owns no tables and has no `BYPASSRLS`. A
+   separate owner role runs migrations and backups only.
+3. **Identity reaches the database per request, never per connection.** See the two stacks below.
+4. **Never trust client input.** Validate every request body and form with a schema (zod or
+   similar) before it touches the database. RLS stops the wrong row. Validation stops the wrong
+   value.
+5. **Never hold a transaction across a model call or any other network call.** Open a short
+   transaction per step. A long request opens a fresh one each time.
+6. **Money is an integer in minor units** (`BIGINT` cents, sen, pence). Never `float`, `real` or
+   `numeric` for money. User input is parsed as text into the integer. An exchange rate may be
+   `NUMERIC`, for display only.
+7. **Every input has a dedupe key**, enforced by a `UNIQUE` constraint. A retried sync, a
+   re-posted webhook or a file shared twice is a no-op.
+8. **A prediction never shares a table with a fact.** Forecasts, estimates, plans and drafts live
+   apart from what happened.
+9. **Integrity in the schema:** foreign keys with a chosen `ON DELETE`, `NOT NULL` where it is
+   true, `UUID` ids, `TIMESTAMPTZ` stored in UTC (compute day and month boundaries in the
+   user's zone), `JSONB` only for genuinely loose data.
+10. **Logic that must be atomic lives in the database or one transaction.** Triggers keep
+    `updated_at` and counters right. A multi-row write is one function or one transaction, never
+    several requests.
 
-$ARGUMENTS
+## RLS patterns
 
----
+### On plain Postgres (Neon, RDS, self-hosted)
 
-## Core Architecture & Security Principles
+The API verifies the session, then each database step runs in a short transaction:
 
-Before making any recommendations, ensure these principles are upheld:
+```sql
+select set_config('app.user_id', $1, true);  -- true = transaction-local
+```
 
-1. **Row Level Security (RLS) is Non-Negotiable**:
-   - **Every** table must have `ALTER TABLE "table_name" ENABLE ROW LEVEL SECURITY;`.
-   - Never write a generic `true` policy unless the data is explicitly public. Use `auth.uid() = user_id` or join through relation tables to verify tenant/group access.
-2. **Input Validation (Zod)**:
-   - Do not trust client data. All Next.js Server Actions or API routes must validate `formData` or request bodies using Zod schemas before touching the Supabase client.
-3. **Client Calls vs. Server Actions (Supabase-First Decision Tree)**:
-   This project has no custom backend — the Supabase client is called directly from the browser, and **RLS is the security boundary**. Do not default to Server Actions for every mutation.
+- `true` makes the setting transaction-local. A pooled connection cannot carry one person's id into
+  another request.
+- Queries run as the app role. Use a driver with real interactive transactions (a WebSocket pool
+  or `pg` over the pooled URL), because the setting must share a transaction with the queries.
+- Policies compare against the setting with a guard:
 
-   **Use a direct browser Supabase client call when ALL of the following are true:**
-   - The target table has a correct RLS policy (e.g. `auth.uid() = user_id`) that physically prevents unauthorized access.
-   - No service role key or external API secret is involved.
-   - The operation is a single-table CRUD — no atomic multi-step transaction is required.
+```sql
+using (user_id = nullif(current_setting('app.user_id', true), '')::uuid)
+with check (user_id = nullif(current_setting('app.user_id', true), '')::uuid)
+```
 
-   **Use a Next.js Server Action ONLY when at least ONE of the following is true:**
-   1. **Service Role Key usage** — the operation must bypass RLS (e.g., admin operations, creating a new user's profile on signup).
-   2. **External secrets or API calls** — the action requires contacting a third-party API using server-only environment variables (e.g., calling Stripe, sending email via Resend).
-   3. **Atomic multi-step transaction** — the feature requires creating/updating multiple tables in a single atomic unit to prevent orphaned data (e.g., creating a group AND its owner membership row simultaneously).
-4. **Data Integrity & Types**:
-   - Always enforce foreign key constraints (`REFERENCES`) with proper deletion behavior (`ON DELETE CASCADE` or `SET NULL`).
-   - Use correct data types: prefer `UUID` for IDs, `TIMESTAMPTZ` for dates, and `JSONB` for unstructured metadata.
-5. **Database Logic (Triggers & Functions)**:
-   - Use Postgres triggers for automated, atomic updates (like `updated_at` modification, creating initial profiles on `auth.users` insert, or incrementing aggregated counters). Do not rely on the client to remember to update these fields.
+  The `nullif` matters. On a reused pooled connection the setting reads `''`, and the cast would
+  throw. With the guard, no identity means no rows.
+- Use `WITH CHECK` on insert and update, so a row cannot be moved to another user.
+- A table a person may only read gets a select policy and nothing else.
+- Views are `WITH (security_invoker = true)`. Without it a view reads as its owner and skips RLS.
+- Functions are `SECURITY INVOKER` unless a comment documents why not.
+- Admin reads across users go only through narrow `SECURITY DEFINER` functions that check the
+  admin flag first, with a pinned `search_path`. A `security_invoker` view cannot do this. Never
+  let an admin function reach money tables unless that is the point of the function.
+- Requests with no session (a public share link, an invitation, a webhook) never set a user id.
+  Each kind goes through one narrow `SECURITY DEFINER` function that checks its token and touches
+  only the rows the token names.
+- If an auth library keeps its own tables, give it its own role, granted only on those tables.
+- Scheduled jobs list users through one narrow function, then act once per user as that user. Make
+  each job idempotent per user and date.
+- Previews and tests use a separate database with anonymised seed data, not a branch of
+  production.
 
----
+### On Supabase
 
-## Mode 1: Audit & Enhance Implementation Plan
+- The identity is `auth.uid()`. Policies read `(select auth.uid()) = user_id`. Wrapping it in
+  `select` lets Postgres evaluate it once per query.
+- The browser calls Supabase directly, so RLS is the boundary there. Do not route plain
+  single-table CRUD through a server action when a correct policy already covers it.
+- Use a server action or edge function only when one of these is true:
+  1. it needs the service role key, to bypass RLS on purpose (admin work, creating a profile on
+     sign-up)
+  2. it needs a server-only secret or a third-party API (payments, email)
+  3. it needs an atomic multi-table write that a single client call cannot make
+- Treat the service role key like radioactive material. It bypasses every policy. Use it only in a
+  place where bypassing RLS is an explicit, audited need, never in code that ships to the client.
+- A trigger on `auth.users` can create the profile row on sign-up.
+- The same view, function and admin rules from the plain-Postgres list apply: `security_invoker`
+  views, `SECURITY INVOKER` functions unless documented, `WITH CHECK` on insert and update,
+  narrow `SECURITY DEFINER` functions for cross-user reads.
 
-### Steps
+## Designing data
 
-1. **Read the implementation plan** carefully. Identify every data entity, foreign relationship, required user role, and mutation.
-2. **Design the Schema**:
-   - Define exact `CREATE TABLE` structures including column types, default values (e.g., `uuid_generate_v4()`), and constraints.
-   - Outline Foreign Keys and behavior (e.g., if a user is deleted, what happens to their posts?).
-3. **Plan Row Level Security (RLS)**:
-   - For every table, define the exact logic for `SELECT`, `INSERT`, `UPDATE`, and `DELETE` policies.
-   - Handle complex access control: If user A is in group B, how do we write an RLS policy using `EXISTS` or a security definer function to allow access?
-4. **Plan Indexing Strategy**:
-   - Suggest `CREATE INDEX` statements for frequently queried columns, foreign keys, or complex join columns to prevent sequential scans.
-5. **Determine Client vs. Server Boundaries**:
-   - For each mutation, apply the **Supabase-First Decision Tree** from Core Principle #3.
-   - For every mutation classified as a direct client call, confirm the RLS policy is correct and sufficient.
-   - For every mutation classified as a Server Action, identify which of the 3 conditions warrant it (service role, external secret, or atomic transaction).
-   - Provide a Zod validation schema only for Server Actions that accept untrusted user input.
-6. **Output an Enhanced Database Plan**:
-   - Present a clear layout of the exact SQL migrations required.
-   - Detail security policies.
-   - Detail the API flow boundary.
+1. List every entity, relationship, mutation and input source the work implies.
+2. Write the tables: column types, `NOT NULL`, defaults, foreign keys with `ON DELETE`, the owner
+   column (`user_id`), and the dedupe key's `UNIQUE` constraint.
+3. Write the policies for each table and operation, as above. For group access ("A is in group
+   B"), use `EXISTS` or a `SECURITY DEFINER` helper with a pinned `search_path`.
+4. Add indexes: the owner column first in composite indexes that match the queries, plus an index on
+   every foreign key and every `WHERE` or join column that matters.
+5. Decide the boundaries: which route, which transaction, what must be atomic, which calls are
+   direct and which need a server.
+6. Write a schema (zod or similar) for every API input.
+7. Put it in the project's migration tool, with a comment on any choice that is not obvious.
 
----
+## What must be true before it is done
 
-## Mode 2: Audit Existing Schema or API Logic
+Check every schema, migration, route and function, new or existing, by reading it and how a
+request reaches it. Fix anything that fails:
 
-### Steps
+- RLS is on from the table's first migration, with `WITH CHECK` on insert and update
+- read-only tables have a select policy only
+- the app role cannot bypass RLS and owns no tables
+- the user id is set per transaction, with the `nullif` guard
+- views are `security_invoker`, functions are `SECURITY INVOKER` unless documented
+- cross-user and tokened access goes only through narrow `SECURITY DEFINER` functions
+- no transaction is held across a model or network call
+- every input has a dedupe key
+- no money as a float
+- no prediction in a fact table
+- tombstones (`deleted_at`) where an offline client syncs deletes
+- no N+1 query, no missing index on a foreign key or a filtered column
+- every API input is validated by a schema
+- timestamps are `timestamptz`, with boundaries computed in the user's zone
 
-1. **Read the target file** and understand its execution context (DB level vs Node.js Server level).
-2. **Identify Security & Integrity Vulnerabilities**:
-   - **RLS**: Is RLS enabled? Are policies easily bypassed? Could a user mutate data they shouldn't by guessing another's UUID?
-   - **Performance**: Are there missing indices on `WHERE` clause targets?
-   - **Integrity**: Are `NOT NULL` constraints missing? Are we relying on the frontend to format dates correctly instead of letting Postgres do it?
-   - **API Layer**: Is a Server Action trusting raw input without `zod.parse()`? Is the Server Action checking auth context correctly? Is the action using the Supabase Service Role (admin bypass) unnecessarily instead of the authenticated user's client?
-3. **Produce an Audit Report** with this format:
+## Tests that must exist
 
-   ### Database & Security Audit Summary
+- **RLS:** a second user reads none of the first user's rows through any table, view or function.
+  An admin reads nothing they should not. A person cannot raise their own limits or switch on their
+  own flags. A token function reaches nothing beyond what its token names. With no user id set,
+  every table reads empty.
+- **Transaction-local identity:** two concurrent requests on one pooled connection never see each
+  other's user id.
+- **Dedupe:** the same input twice, a retried sync and a repeated create are each a no-op.
+- **Money:** shares and apportionments sum exactly to the total, in minor units.
 
-   | Aspect | Current Implementation | Verdict | Recommendation |
-   |:--|:--|:--|:--|
-   | e.g. RLS Policy | Missing on `comments` | ❌ Critical | Add `ENABLE ROW LEVEL SECURITY` and policies |
-   | e.g. Validation | Direct `req.body` insert | ❌ Replace | Wrap input in Zod schema `parse()` |
-   | e.g. Performance | No Index on `group_id` | 🔷 Elevate | `CREATE INDEX idx_comments_group ON comments` |
-   | e.g. Integrity | Client sends `updated_at` | ⚠️ Fix | Create DB Trigger to handle `moddatetime` |
-   | e.g. Admin Bypass | Uses Service Role Key | ⚠️ Fix | Use `@supabase/ssr` authenticated client unless admin override is strictly required |
+Run them with pgTAP or a test runner on a local Postgres, never against production.
 
-4. **Detailed Recommendations**:
-   - Provide concrete refactoring SQL or TypeScript snippets.
-   - Show how to securely write the RLS policy.
-   - Show the exact Zod schema and error handling flow for the Server Action.
+## Rules of thumb
 
----
-
-## Universal Rules
-
-- **RLS is the Security Boundary**: In a Supabase-first architecture, Postgres RLS is the firewall — not the API layer. A user physically cannot read, write, or delete a row they don't have a policy for, regardless of what the client sends. Design RLS policies correctly, and trust them.
-- **Don't Over-Serverize**: Routing simple Supabase CRUD through a Server Action is unnecessary overhead when RLS handles authorization. Apply the Supabase-First Decision Tree rigorously — if none of the 3 Server Action conditions apply, use a direct browser client call.
-- **Service Role Key Danger**: Treat the `supabase.service_role_key` like radioactive material. It bypasses ALL RLS policies. Only use it in specific Server Actions, Webhooks, or Edge Functions where bypassing RLS is an explicit, audited requirement.
-- **Always Validate Server Action Input**: Server Actions that accept user input must validate with Zod before touching Supabase. Validation failures must gracefully return `{ error: "message" }` to the client. Direct client calls are validated implicitly by RLS.
-- **Keep DB Logic Atomic**: If creating "Item A" logically requires creating "Item B", structure this in a single transaction via a Server Action, or a database Trigger, to avoid orphaned data.
+- Do not over-serverize. If RLS already enforces access and nothing needs a secret or atomicity,
+  a direct call is enough.
+- Prefer a general Postgres skill (indexes, locking, pooling) for tuning. This skill's security
+  rules win where they disagree.
+- Fixtures are anonymised. Real personal or financial data never enters the repo.
