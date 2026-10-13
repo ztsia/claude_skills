@@ -12,6 +12,7 @@ project mid-slice.
 | `.claude/agents/implementer.md` | Carries out a batch already decided; Haiku at high effort by default, Sonnet when the main session judges the task needs it |
 | `.claude/agents/qa-reviewer.md` | Independent QA: criteria from the spec first, mutation checks, database and RLS probes, journeys with screenshots |
 | `.claude/agents/scout.md` | Cheap Haiku lookups over long logs or unfamiliar code |
+| `.claude/skills/brief/` | How the main session hands work to a subagent: choosing the model and effort, the brief's template and checks, and the rule for a miss |
 | `.claude/skills/qa/` | How a slice is QA'd: the Haiku sweep, the reviewer, the three fix tiers, the published report |
 | `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist |
 | `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase |
@@ -59,6 +60,12 @@ with it:
   checkout. Every Haiku slip so far traced to something the brief left unsaid. Per token Haiku is a
   twentieth of Sonnet's price, so `high` effort still leaves it about ten times cheaper, and
   Anthropic's docs recommend `high` for long agent tasks and strict instruction following.
+- **Correct the same agent; re-judge on a second miss.** A cheap model's run costs little, but each
+  round also costs the main session a review and a new brief, in its most expensive context. So a
+  miss is first read as the brief's: add the missing line and correct the same agent, which keeps
+  what it knows. A second miss on the same point means the task needs judgment that couldn't be
+  written down, and it moves up a model. No fixed retry count: it would only keep retrying
+  something already seen to be the wrong choice.
 - **Calm, card-based screens.** An owner's phone review found screens correct but plain: facts and
   actions drawn alike, no icons, nothing primary. The structure rules in `uiux` fixed it across
   forty screens in one pass, built by five agents from one set of blocks.

@@ -131,29 +131,11 @@ session spawns them without being asked. **Why:** the strongest model costs most
 think. If it hands the thinking down, the project pays for a brain and gets a smaller one, and a
 cheap model running the session would do as well.
 
-**A brief that leaves thinking to the subagent is the main session's failure, not the model's.**
-Before sending one, check that it says:
-- **the outcome, and every decision behind it** (what's primary, names, behaviour), so nothing is
-  left that a reviewer would argue about
-- **what to copy**: a finished example, or the exact contract (types, keys, test selectors, names that
-  must not change), pointed at rather than restated
-- **the scope**: the files it owns and the ones it mustn't touch, and what others are editing now
-- **how it proves it's done**: the checks to run, and *wait for long runs to end*
-- **its environment**: working directory and absolute paths, a port of its own, *don't commit*
-
-**Choosing the model is a judgment, made per task.** Weigh what's left once the brief is written:
-- **Haiku at `high` effort** (the `implementer`'s default) for any task the brief can fully specify.
-  It costs about a twentieth of Sonnet per token, so even long thinking leaves it about ten times
-  cheaper, and Anthropic's docs put `high` at longer agent tasks and strict instruction following.
-  At `low` and `medium` it sometimes reports a code change done without running a check.
-- **Sonnet at `medium`, or `high`** (`model` and `effort` on the Agent call) when what's left can't
-  honestly be written down in advance: an unknown cause to find, a large body of unfamiliar code to
-  reason across, output that sets a pattern before the main session can show one. Also to re-run a
-  piece Haiku failed: cheap first, then only the failures higher, held the pass rate for about half
-  the cost in Anthropic's runs.
-- **The main session itself** for a change under about 100 lines, a design call, or a
-  non-negotiable's logic.
-- `xhigh` and `max` only for a gain you have measured.
+**A brief that leaves thinking to the subagent is the main session's failure, not the model's.** The
+`brief` skill holds how: choosing the model (Haiku at `high` for whatever a brief can fully specify,
+Sonnet for what can't be written down in advance, the main session itself for small changes, design
+calls and the non-negotiables' logic), the brief's template and checks, and what to do when work
+comes back wrong.
 
 | Agent | What it's for |
 |---|---|
@@ -161,26 +143,18 @@ Before sending one, check that it says:
 | `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill |
 | `scout` (Haiku) | Something too big to read, such as a long log; not what one `grep` answers |
 
-**Working rules:**
-- **Build the shared ground first, yourself** (types, building blocks, one finished example), then
-  brief against it. The example is what makes a brief complete.
-- **Review every report and diff:** check its file list and that it ran its checks, fix what's off,
-  then commit. A report is a claim, not proof.
-- **One checkout unless two agents edit the same files.** A worktree agent starts with `pwd` and uses
-  only paths under it, and checks out the slice's commit first (a worktree may start at `main`).
-- **Subagents can't start subagents.** What an agent would delegate, the main session starts.
 - **Two end-to-end runs never overlap** when they share ports or build folders.
 - **Measure:** `node scripts/usage.mjs` (from the session's starting directory); `--log <slice>`
   keeps a row in `docs/usage.md` before every handoff and PR. The main session's own context is the
   largest cost, so keep its reading and writing small and hand off early. Measurements go in
   `docs/usage.md`, never here: this file holds principles, not history.
-- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted.
 
 ## Skills
 
 | Skill | Use it when |
 |---|---|
 | `qa` | A slice is finished and before its PR, or a non-negotiable was touched. It runs the Haiku sweep, spawns the `qa-reviewer` subagent, and **sets the three tiers for fixing what QA finds**: small fixes self-verified, scoped ones re-checked by resuming the last run's reviewer, and a fresh full run only when a fix reaches the whole flow |
+| `brief` | Before every Agent call that does work, and when a subagent's work comes back short: the model, the brief, and what to do about a miss |
 | `uiux` | Choosing components for a screen, building one, or checking one before it's done |
 | `database` | Designing or checking tables, migrations, SQL, RLS policies, views, functions, or an API route or sync that touches data |
 | `dataflow` | Client state, optimistic updates, realtime |
