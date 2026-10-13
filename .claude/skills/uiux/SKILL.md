@@ -1,6 +1,6 @@
 ---
 name: uiux
-description: How to build a screen with shadcn/ui and keep it inside the project's shared patterns. Use when choosing components and layout for a screen, building one, or checking one before it is done. Read the project's patterns doc, then the component index and only the docs it shortlists. Covers hierarchy, states, feedback, accessibility and theming, plus a phone checklist (thumb reach, touch targets, sheets, undo, the back gesture, offline, how money is shown) when the project is phone-first.
+description: How to build a screen with shadcn/ui and keep it inside the project's shared patterns. Use when choosing components and layout for a screen, building one, or checking one before it is done. Read the project's patterns doc, then the component index and only the docs it shortlists. Covers structure (name what's primary; sort elements into facts, destinations, actions, choices and how-tos, each with its own card-based block), hierarchy, states, feedback, accessibility and theming, plus a phone checklist (thumb reach, touch targets, sheets, undo, the back gesture, offline, how money is shown) when the project is phone-first.
 ---
 
 # UI/UX: shadcn/ui and one set of patterns
@@ -36,15 +36,68 @@ does not hang together.
 5. **`.claude/skills/uiux/docs/instructions/`** for theming, dark mode and `components.json`.
 6. **Other skills** the project has, for charts, the official shadcn skill (current APIs), and so on.
 
+## Structure: calm, card-based screens
+
+Sizes and tokens make a screen correct; structure makes it readable. A screen built from correct
+data as plain label-and-value rows, with actions drawn as more rows under them, reads as a form from
+2005 whatever the data is (an owner's verdict on one: "a primary school hello-world project"). These
+rules prevent that. The project's patterns doc should name a block for each.
+
+1. **Say what's primary.** Each screen has one thing to look at first (a figure, a status, a
+   question) and at most one main action at full size. Everything else steps down a level.
+2. **Cards, not hairline lists.** Rows sit in grouped, rounded cards with a small label above.
+   No full-bleed dividers. Only long, scrolling lists (a feed, a ledger) stay as plain rows.
+3. **Icons on everything you go to or do.** A destination or an action leads with an icon tile: a
+   small icon on a tinted square. Information never gets one, so the two can't be confused.
+4. **Information and actions never look alike.** Facts go in a fact grid (label above value, two
+   columns). Actions go in an action bar (round icon buttons with captions) or one button. Rare and
+   destructive actions go behind an overflow menu, and still offer *Undo*.
+5. **A row says its state.** A destination shows its current value on the right (*4 apps ·
+   running*, *2 to submit*). You shouldn't have to open it to know.
+6. **Show visual choices visually.** Themes as previews, modes with icons, categories as tiles.
+7. **Explain once, briefly.** One line of intro at most. A how-to is numbered steps, never
+   paragraphs, or sits behind *How it works*.
+8. **Long things get a screen, not a sheet.** A sheet holds a choice or a short form.
+9. **Empty and missing states** have an icon, a title, one line and one button.
+10. **Tint where it helps scanning,** such as categories from the chart palette, but let the icon
+    and the name carry the meaning.
+
+| Kind of element | Block | Built from (shadcn) |
+|---|---|---|
+| The one figure or status | Header card | `Card` |
+| A fact | Fact grid | `Card` + a two-column `dl` |
+| A destination | Nav row: icon tile, title, state, chevron, inside a group card | `Item`, `Card` |
+| An on/off setting | Switch row | `Item`, `Switch` |
+| An action | Action bar, or one `Button`; rare ones in an overflow menu | `Button`, `DropdownMenu` |
+| A visual choice | Choice cards with a preview, or a segmented control with icons | `ToggleGroup`, `Card` |
+| A how-to | Steps: numbered, done ones ticked, the next one's button main | `Card`, `Button` |
+| A person | Person row: initials avatar, name, state badge, amount | `Avatar`, `Badge`, `Item` |
+| A few figures | Stat tiles | `Card` |
+| Pages of one kind | Step pager: named steps on top, one card at a time | `ToggleGroup` + scroll snap |
+
+**Build the blocks and two reference screens first,** before the rest of the screens. Every other
+screen, and every brief for one, then points at a finished example.
+
 ## Building a screen
 
 1. List every UI element the screen needs or implies, including empty, loading, error and offline.
-2. Map each element to a shared pattern, then to components, using the reading order above.
-3. Compose existing components before building anything custom. Flag any need shadcn does not
+2. **Say what's primary before you build:** one line, *Primary: what's left this month; main action:
+   none*. If you can't name it, the screen isn't designed yet.
+3. **Sort every element by kind** (the table above) and give it that kind's block. Facts and actions
+   must never look alike.
+4. Map each block to components, using the reading order above.
+5. Compose existing components before building anything custom. Flag any need shadcn does not
    cover, and compose it from shadcn primitives. A need no pattern covers goes into the patterns
    doc first.
-4. Build it. Then hold every element to the checklists below and fix what fails. Where there is
+6. Build it. Then hold every element to the checklists below and fix what fails. Where there is
    room, push past correct towards polished, but never outside the shared patterns.
+7. **Look at it before calling it done:** a screenshot at the target viewport, in light, in dark, and
+   in the flattest theme the project has (one whose cards are rules, not boxes, shows anything that
+   leans on a card's fill), held against the reference screens.
+
+**Briefing a screen to a subagent:** give it the screen's primary thing and each element's kind,
+the reference screens to match, and the screenshot step. A brief that only lists the data a screen
+shows gets a list of text back.
 
 ## What drift looks like
 
@@ -58,6 +111,13 @@ Check every element, new or existing, for these. Fix them before calling the scr
 - **Flat or upside-down hierarchy:** a heading the same size as, or smaller than, what it heads;
   every element at one size; every button drawn as big as the main action. A screen like that reads
   as dense and overwhelming even with a few lines on it.
+- **A list of text:** label-and-value rows with no icons, no grouping and nothing primary. Signs:
+  facts drawn as rows with chevrons, actions drawn as rows under them, a destination that doesn't say
+  its state, a visual choice offered as words, paragraphs explaining a setup, a long record squeezed
+  into a sheet.
+- **A theme's material where it doesn't belong:** a preview of one theme inside another, or a tinted
+  tile, given the class the current theme styles its cards with, so the theme repaints it. Keep that
+  class for real cards.
 
 ## shadcn first, customised in place
 

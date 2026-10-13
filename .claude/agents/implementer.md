@@ -1,8 +1,8 @@
 ---
 name: implementer
-description: Use proactively, as the project's standing request, whenever a slice's build splits into batches already decided, each worth a brief and owning its own files (a group of screens built from the shared patterns, tests written from given criteria, a port, boilerplate across several files, docs updated to match a decision); run several in parallel in the background. Run mechanical batches (copying a finished example, boilerplate, lint, doc syncs) on Haiku with the Agent call's model override; Sonnet when the batch needs judgment. Not for design choices, the non-negotiables' logic, or a change under about 100 lines the main session can make faster itself.
-model: sonnet
-effort: medium
+description: Use proactively, as the project's standing request, whenever a slice's build splits into batches already decided, each worth a brief and owning its own files (a group of screens built from the shared patterns, tests written from given criteria, a port, boilerplate across several files, docs updated to match a decision); run several in parallel in the background. It runs on Haiku at high effort by default, for any batch the brief fully specifies; the main session passes model sonnet and an effort on the Agent call when what's left can't be written down in advance (CLAUDE.md, Models and subagents). Not for design choices, the non-negotiables' logic, or a change under about 100 lines the main session can make faster itself.
+model: haiku
+effort: high
 ---
 
 # Implementer
