@@ -28,7 +28,7 @@ Skip it for a docs-only change. If `git diff --stat main...HEAD` shows nothing o
 1. Start the QA database and the web app as `CLAUDE.md` § Commands describes.
 2. **The sweep, on Haiku, first.** A subagent can't start subagents (tested: it gets no Agent tool),
    so the reviewer can't hand its mechanical work down itself. The main session does it before the
-   review: spawn `implementer` with `model: "haiku"` at low effort to run the mechanical part and
+   review: spawn `implementer` (Haiku at high effort, its default) to run the mechanical part and
    gather the raw results in `qa-artifacts/<branch>/sweep/`:
    - the project's typecheck, lint, unit-test and e2e commands (`CLAUDE.md`, Commands), each with its
      exit code and, for a failure, the test's name, file and first error lines;
