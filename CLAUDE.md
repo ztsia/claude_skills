@@ -123,42 +123,58 @@ handoff first, then let them compact; afterwards read the handoff you wrote and 
 
 ### Models and subagents
 
-**This is the owner's standing request to use subagents**, so a session spawns them without being
-asked each time; it overrides any default that says to spawn only on request. The main session
-(the strongest model) decides, talks with the owner, works on the non-negotiables, and reviews what
-comes back. The agents are in `.claude/agents/`:
+**The main session is the brain; subagents are its hands.** The main session runs on the strongest
+model (Opus). It talks with the owner, makes every decision, works on the non-negotiables, writes
+the briefs, and reviews what comes back. Subagents carry out work that is decided but too long or
+too repetitive to be worth the strongest model's price. This is the owner's standing request, so a
+session spawns them without being asked. **Why:** the strongest model costs most and is there to
+think. If it hands the thinking down, the project pays for a brain and gets a smaller one, and a
+cheap model running the session would do as well.
 
-| Agent | Use it when | Don't, when |
-|---|---|---|
-| `implementer` (Sonnet) | A slice's build splits into **batches already decided**, each worth a brief: a group of screens from the patterns, tests from given criteria, a port, boilerplate across files. Each batch owns its own files, so several run **in parallel, in the background** | The change is under about 100 lines, needs a design decision, or touches a non-negotiable's logic: do it yourself |
-| `implementer` on **Haiku** (`model: haiku` on the Agent call, low effort) | A **mechanical** batch: copying a finished example to more files, test boilerplate from given criteria, lint and format fixes, doc syncs to a decision, reading logs, screenshot sweeps. About a twentieth of Sonnet's price | The batch needs judgment (layout choices, a tricky state, anything a reviewer would argue about): Sonnet |
-| `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill: a full run when a slice is finished, then the tiers | |
-| `scout` (Haiku) | Something too big to read: a long CI log, a large unfamiliar area | A lookup one `grep` or a filtered log answers; its cold start costs more than it saves |
+**A brief that leaves thinking to the subagent is the main session's failure, not the model's.**
+Before sending one, check that it says:
+- **the outcome, and every decision behind it** (what's primary, names, behaviour), so nothing is
+  left that a reviewer would argue about
+- **what to copy**: a finished example, or the exact contract (types, keys, test selectors, names that
+  must not change), pointed at rather than restated
+- **the scope**: the files it owns and the ones it mustn't touch, and what others are editing now
+- **how it proves it's done**: the checks to run, and *wait for long runs to end*
+- **its environment**: working directory and absolute paths, a port of its own, *don't commit*
 
-**Why:** the main session's context is re-read every turn, so code it writes costs again on every
-later turn; an implementer's code costs the main session only its report and the diffs it checks.
-Sonnet is about half the strongest model's price, and several batches can run at once. The cost is
-a cold start per agent, so:
-- **Build the shared ground first, yourself** (types, data layer, one screen in the house style,
-  placeholders where a batch's behaviour goes), then brief the batches against it.
-- **Keep briefs lean:** the exact files and sections to read, the files it owns, the checks to run,
-  a port of its own for a dev server, and *don't commit*. Point at a finished example rather than
-  restating rules. Say which files other work is editing at the same time.
-- **Review every report and diff yourself**, fix what's off, then commit. No per-task review loops:
-  QA checks the slice. A report is the agent's claim, not proof: check what it says it changed.
-- **Haiku, measured:** about 13× cheaper than Sonnet on a comparable batch, but it slips on unstated
-  contracts (it accepted only its own keys where a shared one was expected, and ran a repo-wide
-  formatter). Keep it for mechanical work, and give it the contract spelled out, *only your files*,
-  and *wait for long runs to end* (it reported a one-hour test run as done while it was running).
-- **Subagents can't start subagents** (tested). Anything an agent would delegate, the main session
-  starts itself: the `qa` skill's Haiku sweep runs before the reviewer, not inside it.
-- **Two end-to-end runs never overlap** when they share ports or build folders; queue them.
-- **Measure, then tune.** `node scripts/usage.mjs` shows what each agent and model cost this session,
-  read from the transcripts; `--log <slice>` keeps a row in `docs/usage.md`, before every handoff
-  and PR (cloud transcripts go with the VM). Keep the main session's own reading and writing small,
-  and hand off before its context grows long.
-- Subagents spend the same quota as the main session. When one stops at a usage limit, resume it
-  (`SendMessage`), never restart it.
+**Choosing the model is a judgment, made per task.** Weigh what's left once the brief is written:
+- **Haiku at `high` effort** (the `implementer`'s default) for any task the brief can fully specify.
+  It costs about a twentieth of Sonnet per token, so even long thinking leaves it about ten times
+  cheaper, and Anthropic's docs put `high` at longer agent tasks and strict instruction following.
+  At `low` and `medium` it sometimes reports a code change done without running a check.
+- **Sonnet at `medium`, or `high`** (`model` and `effort` on the Agent call) when what's left can't
+  honestly be written down in advance: an unknown cause to find, a large body of unfamiliar code to
+  reason across, output that sets a pattern before the main session can show one. Also to re-run a
+  piece Haiku failed: cheap first, then only the failures higher, held the pass rate for about half
+  the cost in Anthropic's runs.
+- **The main session itself** for a change under about 100 lines, a design call, or a
+  non-negotiable's logic.
+- `xhigh` and `max` only for a gain you have measured.
+
+| Agent | What it's for |
+|---|---|
+| `implementer` | A batch already decided, owning its own files; several run in parallel, in the background |
+| `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill |
+| `scout` (Haiku) | Something too big to read, such as a long log; not what one `grep` answers |
+
+**Working rules:**
+- **Build the shared ground first, yourself** (types, building blocks, one finished example), then
+  brief against it. The example is what makes a brief complete.
+- **Review every report and diff:** check its file list and that it ran its checks, fix what's off,
+  then commit. A report is a claim, not proof.
+- **One checkout unless two agents edit the same files.** A worktree agent starts with `pwd` and uses
+  only paths under it, and checks out the slice's commit first (a worktree may start at `main`).
+- **Subagents can't start subagents.** What an agent would delegate, the main session starts.
+- **Two end-to-end runs never overlap** when they share ports or build folders.
+- **Measure:** `node scripts/usage.mjs` (from the session's starting directory); `--log <slice>`
+  keeps a row in `docs/usage.md` before every handoff and PR. The main session's own context is the
+  largest cost, so keep its reading and writing small and hand off early. Measurements go in
+  `docs/usage.md`, never here: this file holds principles, not history.
+- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted.
 
 ## Skills
 
