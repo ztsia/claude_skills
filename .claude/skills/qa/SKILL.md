@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Independent QA pass on the current branch before its PR, plus the rules for fixing what it finds. Spawns a clean-context reviewer that writes acceptance criteria and flows from the spec, checks the tests actually catch breakage, exercises the database, row-level security and routes where the project has them, and walks the journeys in the web app with a screenshot per step. Every finished slice gets a full run. Fixes then go by three tiers. Small: the main session fixes and verifies itself. Scoped: the last run's reviewer is resumed on the area the fixes touched. Full: a fresh full run, only when a fix reaches the whole flow. Use when a slice is finished, before a PR, when a non-negotiable was touched, or when asked to verify, QA or review work.
+description: Independent QA pass on the current branch before its PR, plus the rules for fixing what it finds. Spawns a clean-context reviewer that writes acceptance criteria and flows from the spec, runs its own helpers (a Haiku sweep that diffs every screen's accessibility tree and pixels against main and runs scripted visual checks, and an Opus eyes pass over each changed screen), checks the tests actually catch breakage, exercises the database, row-level security and routes where the project has them, and walks the journeys in the web app with a screenshot per step. Every finished slice gets a full run. Fixes then go by three tiers. Small: the main session fixes and verifies itself. Scoped: the last run's reviewer is resumed on the area the fixes touched. Full: a fresh full run, only when a fix reaches the whole flow. Bugs the owner finds by hand go in qa/escapes.md. Use when a slice is finished, before a PR, when a non-negotiable was touched, or when asked to verify, QA or review work.
 ---
 
 # QA pass
@@ -25,30 +25,39 @@ Skip it for a docs-only change. If `git diff --stat main...HEAD` shows nothing o
 
 ## Running it
 
-1. Start the QA database and the web app as `CLAUDE.md` § Commands describes.
-2. **The sweep, on Haiku, first.** A subagent can't start subagents (tested: it gets no Agent tool),
-   so the reviewer can't hand its mechanical work down itself. The main session does it before the
-   review: spawn `implementer` with `model: "haiku"` at low effort to run the mechanical part and
-   gather the raw results in `qa-artifacts/<branch>/sweep/`:
-   - the project's typecheck, lint, unit-test and e2e commands (`CLAUDE.md`, Commands), each with its
-     exit code and, for a failure, the test's name, file and first error lines;
-   - the e2e run's screenshots, every journey step in every variant the project has (themes, colour
-     modes, locales). The e2e setup should offer an env var that writes each screenshot to a file in
-     a given folder, because a plain list reporter keeps no attachments. Run it with that variable
-     pointing at `qa-artifacts/<branch>/sweep/screens`. If the project has no such switch, adding
-     one is the first fix to make;
-   - `sweep/index.md`, listing what ran, what failed and where each screenshot is.
+QA is **diff-driven**: it records what every screen *is* (its accessibility tree, committed), compares
+the branch's pixels with the default branch's in every theme and mode, measures by script what a
+person shouldn't have to spot, and looks hard only at what changed. Behaviour runs once, in one
+theme. Most slices change few screens, so a reviewer that re-reads every screenshot in every variant
+spends its attention on what didn't move.
 
-   It reports raw results only: no judgement, no fixes, no reading of the slice's code beyond the
-   failures. **Long e2e runs can take an hour:** tell it to wait for the run to end, and not to report
-   while the run is still going (a sweep that reports early gives the reviewer half a result). Wait
-   for it before step 3.
-3. Spawn `qa-reviewer` with the Agent tool, `subagent_type: "qa-reviewer"`. It runs on Sonnet by
-   default; pass `model: "opus"` when the slice's risk calls for it.
-4. **Keep the prompt thin:** the branch, the slice label, the slice's entry in the slice map (if the
-   project has one), and where the sweep is. Nothing else. A scoped run (tier 2) adds only its area
-   and the finding IDs, below.
-5. **Keep the last run's record:** before a new run, rename `qa/<slice>/report.md` to
+The project provides the tooling (`examples/qa/` holds a working set to adapt):
+- **a catalogue**: every screen in the app's screen registry, opened on a fixed scenario at a frozen
+  clock, with a test that fails when a registered screen has no entry (or an *unexplored* reason);
+- **trees**: each entry's accessibility tree, recorded with Playwright's `toMatchAriaSnapshot` in one
+  theme and committed. CI fails when a screen changes and its tree wasn't re-recorded, so every PR's
+  diff shows which screens changed and how;
+- **a diff script**: builds the default branch in a worktree and the branch, shoots every entry
+  whole-screen in every theme and mode from both, compares them (`pixelmatch`), and writes
+  `qa-artifacts/<branch>/diff/index.md`: the changed and new screens with each tree diff and base,
+  head and diff images, the unexplored screens, and the scripted checks' findings. Comparing the
+  branch with itself must report nothing changed;
+- **scripted checks**, on every entry in every variant, every run: axe (so contrast), touch-target
+  size, clipped text, overlapping text or targets, a target under something fixed (a toast, a bar)
+  that scrolling can't free, a field or main button hidden by the keyboard, an invisible focus ring.
+  The journeys run the cover check at every screenshot, where toasts happen. Each check is proven to
+  fire on a page built to break it. Never an allowlist of known failures: fix the app, or narrow the
+  check with a comment saying why.
+
+1. Start the QA database and the web app as `CLAUDE.md` § Commands describes.
+2. Spawn `qa-reviewer` with the Agent tool, `subagent_type: "qa-reviewer"`. It runs on Sonnet by
+   default; pass `model: "opus"` when the slice's risk calls for it. **It spawns its own helpers**
+   (the sweep and the eyes pass, from the templates below), so the main session runs no sweep and its
+   context stays small.
+3. **Keep the prompt thin:** the branch, the slice label, and the slice's entry in the slice map (if
+   the project has one). Nothing else. A scoped run (tier 2) adds only its area and the finding IDs,
+   below.
+4. **Keep the last run's record:** before a new run, rename `qa/<slice>/report.md` to
    `report-run<N>.md`, so the new run writes its own.
 
 > **Don't tell it what you built, how it works, or why you think it's right.** Its value is that it
@@ -59,6 +68,52 @@ Skip it for a docs-only change. If `git diff --stat main...HEAD` shows nothing o
 Run it in the background and keep working. If a subagent stops at a usage limit, resume it
 (`SendMessage`); never restart it.
 
+## The helpers' templates
+
+`qa-reviewer` spawns these with the Agent tool (a subagent can spawn subagents, up to three layers,
+when `Agent` is in its tools). Each template fixes the helper's agent, model and prompt; the reviewer
+fills in only the angle brackets. Neither helper judges the slice for the reviewer.
+
+**The sweep** (`subagent_type: "implementer"`, `model: "haiku"`, effort `high`), first, in the
+background, while the reviewer writes its criteria:
+
+```
+Goal: QA's raw results for branch <branch>, gathered in qa-artifacts/<branch>/sweep/. No judgement,
+no fixes, no reading of source beyond a failure's first lines.
+Run, from <repo root>, one at a time, each to its end, keeping each exit code:
+  <typecheck>; <lint>; <unit tests>
+  <e2e, with the env var that writes each screenshot to qa-artifacts/<branch>/sweep/screens>
+  <the diff script> --out qa-artifacts/<branch>/diff
+For a run over ten minutes, start it in the background writing a log and an exit-code file, and
+wait with ONE until-loop on that file; never report a run still going, and never check every minute.
+Write qa-artifacts/<branch>/sweep/index.md: each command, its exit code and duration; each failing
+test's name, file and first error lines; the diff report's summary line, pasted.
+Don't commit. Report: index.md's contents.
+```
+
+**The eyes pass** (`subagent_type: "qa-eyes"`, Opus, its default), once the diff report exists,
+when it lists any changed or new entry:
+
+```
+The diff report is qa-artifacts/<branch>/diff/index.md, its screenshots beside it. Look at every
+changed and new entry it lists, as your instructions say, and write qa/<slice>/eyes.md.
+```
+
+The reviewer turns each `wrong` verdict into a finding (Minor at least; Major when a person would be
+misled or can't finish a journey) and weighs each `look again` itself.
+
+**Waiting costs.** Every time an agent wakes, it re-reads its whole conversation, and a wait of more
+than a few minutes lets the prompt cache expire, so the next turn writes it again. One until-loop per
+long run, not a check every minute; and don't repeat a long run whose point an earlier run already
+proved.
+
+## Escapes
+
+When the owner finds a bug by hand that QA passed, the main session adds it to `qa/escapes.md`
+before fixing it: what the owner saw, why QA missed it, the pin that now catches it (a test that
+fails on the code before the fix), and the question (**Ask**) the eyes pass will put to every changed
+screen from then on.
+
 ## Reading the result
 
 The owner never sees the subagent's report, so relay these yourself:
@@ -66,7 +121,8 @@ The owner never sees the subagent's report, so relay these yourself:
 - every Blocker and Major, in full
 
 **First, commit and push the reviewer's record at once:** `qa/<slice>/report.md`,
-`qa/<slice>/results.json`, and its `acceptance.md`, `flows.md` and specs. That's the durable record:
+`qa/<slice>/results.json`, its `acceptance.md`, `flows.md`, `eyes.md` and specs, and any tree the
+diff run re-recorded (the branch should have committed them; if it hadn't, that's a finding). That's the durable record:
 `qa-artifacts/` is gitignored and goes when the VM is reclaimed. If the reviewer didn't write
 `report.md`, write it yourself from its final message before doing anything else.
 
@@ -172,5 +228,8 @@ carries its own evidence.
 | `qa/<slice>/acceptance.md`, `qa/<slice>/flows.md` | Yes | Each run adds its section; a scoped run reads the earlier ones after writing its own |
 | `qa/<slice>/ledger.md` | Yes | Tier-1 evidence, and every tier decision |
 | `qa/e2e/*.spec.ts` | Yes | They're the regression suite |
+| `qa/<slice>/eyes.md` | Yes | The eyes pass's answers, screen by screen |
+| `qa/escapes.md` | Yes | Every bug QA missed, and the question it added |
+| The trees (`*.aria.yml`) | Yes | Each screen's accessibility tree; CI fails on a stale one, so a PR's diff shows which screens changed |
 | `qa/<slice>/report.md`, `qa/<slice>/results.json` | Yes | The findings, verdict and evidence, in the repo, so they outlive the VM |
-| `qa-artifacts/<branch>/` | No | Screenshots, traces and the rendered `report.html`. Published with the Artifact tool, then deleted. Too big to commit, and rebuilt from the rows above when needed. Add it to `.gitignore` |
+| `qa-artifacts/<branch>/` | No | The sweep, the diff report with its images, screenshots, traces and the rendered `report.html`. Published with the Artifact tool, then deleted. Too big to commit, and rebuilt from the rows above when needed. Add it to `.gitignore` |

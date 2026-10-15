@@ -15,6 +15,7 @@
 | `<docs/flows.md, docs/screens.md, docs/ui/patterns.md>` | Journeys, screen map, shared UI patterns | The UX contract |
 | `docs/modules.md`, `docs/briefs/` | The slice map, and one brief per slice | Your branch's boundary. A build session starts from its brief |
 | `docs/cloud.md` | What a cloud session has, can reach, and must never hold | Measured facts. Update it when you measure something new |
+| `qa/escapes.md` | Every bug the owner found by hand that QA had passed, why it was missed, its pin and the question it added | Add an entry before fixing one |
 | `docs/local.md` | What only the owner, or a machine with a device, can do | A queue. Add to it instead of attempting these |
 | `docs/handoff.md` | The one handoff, from the last session to you | Read it first. Rewrite it before you end |
 
@@ -115,7 +116,9 @@ handoff first, then let them compact; afterwards read the handoff you wrote and 
   | `<install>` | Install everything |
   | `<dev>` | The app locally, with its dev tools |
   | `<test>`, `<typecheck>`, `<lint>`, `<format>` | The fast checks a contributor runs before a push |
-  | `<e2e>` | End-to-end tests. Offer an env var that keeps each screenshot as a file (QA's sweep needs it) and one that narrows a long matrix for PR pushes, with the full matrix nightly |
+  | `<e2e>` | End-to-end tests: journeys once, in one theme; the screen catalogue in every theme and mode, with its committed trees and the scripted checks. Offer an env var that keeps each screenshot as a file (QA's sweep needs it) and one that narrows the catalogue's matrix for PR pushes, with the full matrix nightly |
+  | `<trees>` | Re-records each screen's accessibility tree after a screen changes; CI fails on a stale one |
+  | `<qa diff>` | QA's diff against the default branch: trees, pixels in every theme and mode, and the scripted checks, into `qa-artifacts/<branch>/diff/index.md` (`examples/qa/`) |
   | `node scripts/usage.mjs` | What this session cost, by agent and model; `--log <slice>` keeps its row in `docs/usage.md` |
   | `node scripts/qa-report.mjs qa-artifacts/<branch>` | Renders QA's report for publishing (the `qa` skill) |
 
@@ -158,7 +161,8 @@ Before sending one, check that it says:
 | Agent | What it's for |
 |---|---|
 | `implementer` | A batch already decided, owning its own files; several run in parallel, in the background |
-| `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill |
+| `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill. It spawns its own helpers from the skill's templates: the sweep (`implementer` on Haiku) and the eyes pass |
+| `qa-eyes` (Opus) | Spawned by `qa-reviewer` only: each changed screen at full size, answering fixed questions in writing |
 | `scout` (Haiku) | Something too big to read, such as a long log; not what one `grep` answers |
 
 **Working rules:**
@@ -168,7 +172,12 @@ Before sending one, check that it says:
   then commit. A report is a claim, not proof.
 - **One checkout unless two agents edit the same files.** A worktree agent starts with `pwd` and uses
   only paths under it, and checks out the slice's commit first (a worktree may start at `main`).
-- **Subagents can't start subagents.** What an agent would delegate, the main session starts.
+- **Subagents start subagents only when `Agent` is in their tools** (up to three layers). Only
+  `qa-reviewer` has it, for its sweep and eyes pass; for everything else, what an agent would
+  delegate, the main session starts.
+- **Waiting costs.** An agent re-reads its whole conversation each time it wakes, and a wait longer
+  than a few minutes lets the prompt cache expire. Brief one until-loop per long run, never a check
+  every minute, and no repeat of a long run whose point an earlier run already proved.
 - **Two end-to-end runs never overlap** when they share ports or build folders.
 - **Measure:** `node scripts/usage.mjs` (from the session's starting directory); `--log <slice>`
   keeps a row in `docs/usage.md` before every handoff and PR. The main session's own context is the
@@ -180,7 +189,7 @@ Before sending one, check that it says:
 
 | Skill | Use it when |
 |---|---|
-| `qa` | A slice is finished and before its PR, or a non-negotiable was touched. It runs the Haiku sweep, spawns the `qa-reviewer` subagent, and **sets the three tiers for fixing what QA finds**: small fixes self-verified, scoped ones re-checked by resuming the last run's reviewer, and a fresh full run only when a fix reaches the whole flow |
+| `qa` | A slice is finished and before its PR, or a non-negotiable was touched. It spawns the `qa-reviewer` subagent, which diffs every screen's tree and pixels against the default branch, runs the scripted visual checks, and looks hard only at what changed; it **sets the three tiers for fixing what QA finds**: small fixes self-verified, scoped ones re-checked by resuming the last run's reviewer, and a fresh full run only when a fix reaches the whole flow |
 | `uiux` | Choosing components for a screen, building one, or checking one before it's done |
 | `database` | Designing or checking tables, migrations, SQL, RLS policies, views, functions, or an API route or sync that touches data |
 | `dataflow` | Client state, optimistic updates, realtime |

@@ -10,9 +10,11 @@ project mid-slice.
 |---|---|
 | `CLAUDE.md` | The workflow template: handoff rotation, one brief one branch, the owner's rules, models and subagents (the main session as the brain, complete briefs, choosing a model per task), QA tiers. Fill in its `<…>` parts |
 | `.claude/agents/implementer.md` | Carries out a batch already decided; Haiku at high effort by default, Sonnet when the main session judges the task needs it |
-| `.claude/agents/qa-reviewer.md` | Independent QA: criteria from the spec first, mutation checks, database and RLS probes, journeys with screenshots |
+| `.claude/agents/qa-reviewer.md` | Independent QA: criteria from the spec first, mutation checks, database and RLS probes, what changed against the default branch, journeys with screenshots |
+| `.claude/agents/qa-eyes.md` | QA's human-eyes pass on Opus: each changed screen at full size, fixed questions answered in writing |
 | `.claude/agents/scout.md` | Cheap Haiku lookups over long logs or unfamiliar code |
-| `.claude/skills/qa/` | How a slice is QA'd: the Haiku sweep, the reviewer, the three fix tiers, the published report |
+| `.claude/skills/qa/` | How a slice is QA'd, diff-driven: the reviewer and the helpers it spawns (the Haiku sweep, the eyes pass), the escape log, the three fix tiers, the published report |
+| `examples/qa/` | Sen's QA tooling, to adapt: the screen catalogue's spec, the scripted visual checks, the diff script against the default branch, and a starting `escapes.md` |
 | `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist |
 | `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase |
 | `.claude/skills/dataflow/`, `.claude/skills/prompt/` | Client state; prompts a product sends to a model |
