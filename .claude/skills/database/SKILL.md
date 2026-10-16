@@ -120,6 +120,30 @@ with check (user_id = nullif(current_setting('app.user_id', true), '')::uuid)
 6. Write a schema (zod or similar) for every API input.
 7. Put it in the project's migration tool, with a comment on any choice that is not obvious.
 
+## Every route in one table, swept
+
+An API's input edge cases are found once for all routes, not one route per QA run. Starting files are
+in `templates/api/`.
+
+- **One route table** (`routes.table.ts`) lists every route: method, path, who may call it, and for a
+  write a body it accepts. A test compares it with the routes the app registers, handler for handler.
+  **A route the app registers that isn't in the table fails the test**, so a new route gets every
+  check by being listed.
+- **The sweep** (a test over the table, on the QA database, never production's) fires the same bad
+  requests at every route:
+  - signed out, and as someone without the right
+  - another person's id
+  - a foreign or `null` Origin on a write
+  - a body that isn't JSON, a NUL character, deep nesting, an oversized body
+  - the wrong method, and an unknown path
+
+  Each must answer with the project's structured error, never a stack trace and never a 500.
+- **What the sweep can't know is each route's meaning**: a reviewer's probes go there.
+- **`Server-Timing` on every answer** (`templates/api/timing.ts`): the server's time, the database's
+  time, and the query and row counts. Numbers only, never data or ids. A client run then splits the
+  server's share from the network's, and the QA metrics judge it. A query count that grows with the
+  rows is an N+1 you can see.
+
 ## What must be true before it is done
 
 Check every schema, migration, route and function, new or existing, by reading it and how a
@@ -138,6 +162,7 @@ request reaches it. Fix anything that fails:
 - tombstones (`deleted_at`) where an offline client syncs deletes
 - no N+1 query, no missing index on a foreign key or a filtered column
 - every API input is validated by a schema
+- every route is in the route table, and every answer carries `Server-Timing`
 - timestamps are `timestamptz`, with boundaries computed in the user's zone
 
 ## Tests that must exist
