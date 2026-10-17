@@ -143,6 +143,9 @@ Before sending one, check that it says:
   must not change), pointed at rather than restated
 - **the scope**: the files it owns and the ones it mustn't touch, and what others are editing now
 - **how it proves it's done**: the checks to run, and *wait for long runs to end*
+- **for a measurement, how the person meets the thing, and a time budget** (seen: a brief asked for
+  cold opens, three samples each; it measured first installs, not a phone opening the app from its
+  cache, and took 70 minutes)
 - **its environment**: working directory and absolute paths, a port of its own, *don't commit*
 
 **Choosing the model is a judgment, made per task.** Weigh what's left once the brief is written:
@@ -183,7 +186,9 @@ Before sending one, check that it says:
   keeps a row in `docs/usage.md` before every handoff and PR. The main session's own context is the
   largest cost, so keep its reading and writing small and hand off early. Measurements go in
   `docs/usage.md`, never here: this file holds principles, not history.
-- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted.
+- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted. Check which model its
+  next turns ran on: one resumed on the strongest model instead of its Sonnet, and cost three times
+  its first run. If it switched, stop it and brief a fresh agent on the right model with the work so far.
 
 ## Skills
 
