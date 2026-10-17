@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Independent QA pass on the current branch before its PR, plus the rules for fixing what it finds. Spawns a clean-context reviewer that writes acceptance criteria and flows from the spec, checks the tests actually catch breakage, exercises the database, row-level security and routes where the project has them, and walks the journeys in the web app with a screenshot per step. Every finished slice gets a full run. Fixes then go by three tiers. Small: the main session fixes and verifies itself. Scoped: the last run's reviewer is resumed on the area the fixes touched. Full: a fresh full run, only when a fix reaches the whole flow. Use when a slice is finished, before a PR, when a non-negotiable was touched, or when asked to verify, QA or review work.
+description: Independent QA pass on the current branch before its PR, plus the rules for fixing what it finds. Diff-driven and measured: mechanical checks first (the suites, a route sweep, breakage checks, lived-in journeys, metrics flags, a diff of every screen against the default branch), then a clean-context reviewer who writes acceptance criteria and flows from the spec, explains every flag, and an eyes pass that looks at each changed screen and tap as a person would. Never guesses causes: it measures. Every finished slice gets a full run. Fixes then go by three tiers. Small: the main session fixes and verifies itself. Scoped: the last run's reviewer is resumed on the area the fixes touched. Full: a fresh full run, only when a fix reaches the whole flow. Bugs the owner finds by hand go in qa/escapes.md and close only with a tooling change. Use when a slice is finished, before a PR, when a non-negotiable was touched, or when asked to verify, QA or review work.
 ---
 
 # QA pass
@@ -10,8 +10,10 @@ skill sets the run up and hands off to the `qa-reviewer` subagent. Its clean con
 
 This skill needs the project's `CLAUDE.md` to name: its non-negotiables, its spec, its slice or brief
 file (what a slice is and what it owns), its commands (start the app, the QA database, the tests, the
-e2e run), the handoff file, and the file where manual work for the owner is queued. Where one is
-missing, the reviewer infers scope from the branch and its diff and says so.
+e2e run, and the QA commands: the route sweep, the breakage checks, the lived-in journeys, the diff),
+the handoff file, and the file where manual work for the owner is queued. Where one is missing, the
+reviewer infers scope from the branch and its diff and says so. Starting files for the tooling are in
+`templates/` (`qa/limits.ts`, `qa/mutants.ts`, `qa/escapes.md`, `scripts/mutants.mjs`, `api/`).
 
 ## When to run it
 
@@ -25,30 +27,41 @@ Skip it for a docs-only change. If `git diff --stat main...HEAD` shows nothing o
 
 ## Running it
 
-1. Start the QA database and the web app as `CLAUDE.md` § Commands describes.
-2. **The sweep, on Haiku, first.** A subagent can't start subagents (tested: it gets no Agent tool),
-   so the reviewer can't hand its mechanical work down itself. The main session does it before the
-   review: spawn `implementer` with `model: "haiku"` at low effort to run the mechanical part and
-   gather the raw results in `qa-artifacts/<branch>/sweep/`:
-   - the project's typecheck, lint, unit-test and e2e commands (`CLAUDE.md`, Commands), each with its
-     exit code and, for a failure, the test's name, file and first error lines;
-   - the e2e run's screenshots, every journey step in every variant the project has (themes, colour
-     modes, locales). The e2e setup should offer an env var that writes each screenshot to a file in
-     a given folder, because a plain list reporter keeps no attachments. Run it with that variable
-     pointing at `qa-artifacts/<branch>/sweep/screens`. If the project has no such switch, adding
-     one is the first fix to make;
-   - `sweep/index.md`, listing what ran, what failed and where each screenshot is.
+QA is **diff-driven**. It records what every screen *is* (its accessibility tree, committed beside
+the e2e tests), compares the branch's pixels with the default branch's in every look and colour mode
+the project has, measures by script what a person shouldn't have to spot, and looks hard only at what
+changed. Behaviour runs once, in one look.
 
-   It reports raw results only: no judgement, no fixes, no reading of the slice's code beyond the
-   failures. **Long e2e runs can take an hour:** tell it to wait for the run to end, and not to report
-   while the run is still going (a sweep that reports early gives the reviewer half a result). Wait
-   for it before step 3.
-3. Spawn `qa-reviewer` with the Agent tool, `subagent_type: "qa-reviewer"`. It runs on Sonnet by
-   default; pass `model: "opus"` when the slice's risk calls for it.
-4. **Keep the prompt thin:** the branch, the slice label, the slice's entry in the slice map (if the
-   project has one), and where the sweep is. Nothing else. A scoped run (tier 2) adds only its area
-   and the finding IDs, below.
-5. **Keep the last run's record:** before a new run, rename `qa/<slice>/report.md` to
+It also **measures, and never guesses causes.** The runs already made record what each screen, tap,
+route and build costs a person (time) and a phone (bytes, CPU, memory), on the branch and on the
+default branch. `qa/limits.ts` judges them against human limits and against the default branch, and
+flags only what breaks a limit or got worse. No check names a cause ("the function is in another
+region", "file X under N KB"): a check that names a cause only catches the last bug. The reviewer
+finds the cause of each flag.
+
+**The order is mechanical first, then judgement on what the machines raised:**
+1. the suites (typecheck, lint, unit, database, e2e)
+2. the route sweep: every route in the route table hit with the same bad requests
+3. the breakage checks: dangerous edits made in a worktree, each of which a suite must catch
+4. the lived-in journeys: across a deploy, resume from the background, offline, a slow network,
+   200% text, a small phone, a year of data
+5. the metrics flags
+6. the diff against the default branch
+
+The reviewer then spends its judgement on the flags, the surviving breakage checks and the changed
+screens, and on the criteria it writes from the spec. It does not re-derive input edge cases route by
+route: a slice that did that took four runs and about $60, nearly all of it edge cases found one
+route at a time.
+
+1. Start the QA database and the app as `CLAUDE.md` § Commands describes.
+2. Spawn `qa-reviewer` with the Agent tool, `subagent_type: "qa-reviewer"`. It runs on Sonnet by
+   default; pass `model: "opus"` when the slice's risk calls for it. **It spawns its own helpers**
+   (the sweep and the eyes pass, from the templates below), so the main session doesn't run a sweep
+   and its context stays small.
+3. **Keep the prompt thin:** the branch, the slice label and the slice's entry in the slice map (if
+   the project has one). Nothing else. A scoped run (tier 2) adds only its area and the finding IDs,
+   below.
+4. **Keep the last run's record:** before a new run, rename `qa/<slice>/report.md` to
    `report-run<N>.md`, so the new run writes its own.
 
 > **Don't tell it what you built, how it works, or why you think it's right.** Its value is that it
@@ -56,8 +69,84 @@ Skip it for a docs-only change. If `git diff --stat main...HEAD` shows nothing o
 > independent check into a confirmation of your own assumptions. Don't pre-empt it with known
 > issues either. If it misses one, that's a finding about how clear the spec is.
 
-Run it in the background and keep working. If a subagent stops at a usage limit, resume it
-(`SendMessage`); never restart it.
+Run it in the background and keep working.
+
+## The helpers' templates
+
+`qa-reviewer` spawns these with the Agent tool (a subagent may spawn subagents when `Agent` is in its
+tools). Each template fixes the helper's agent, model and prompt; the reviewer fills in only the
+angle brackets. Neither helper judges the slice for the reviewer.
+
+**The sweep** (`subagent_type: "implementer"`, `model: "haiku"`, effort `high`), first, in the
+background, while the reviewer writes its criteria. Replace each `<…>` with the project's command
+from `CLAUDE.md`:
+
+```
+Goal: QA's raw results for branch <branch>, gathered in qa-artifacts/<branch>/sweep/. No judgement,
+no fixes, no reading of source beyond a failure's first lines.
+Run, from <absolute path of the checkout>, one at a time, each to its end, keeping each exit code:
+  <typecheck>; <lint>; <unit tests>
+  <database tests, including the route sweep>
+  <e2e, with the env var that writes each screenshot to qa-artifacts/<branch>/sweep/screens>
+  <lived-in journeys>
+  <breakage checks: node scripts/mutants.mjs>
+  <the diff against the default branch, into qa-artifacts/<branch>/diff>
+Never two at once: they share ports and the test database.
+For a run over ten minutes, start it in the background writing a log and an exit-code file, and
+wait with ONE until-loop on that file; never report a run still going.
+Write qa-artifacts/<branch>/sweep/index.md: each command, its exit code and duration; each failing
+test's name, file and first error lines; every surviving or stale breakage check
+(mutants/index.md); every metrics flag and standing item (the diff report's Metrics section),
+pasted; the diff report's summary line, pasted.
+Don't commit. Report: index.md's contents.
+```
+
+**The eyes pass** (`subagent_type: "qa-eyes"`, the strongest model, its default), once the diff
+report exists, when it lists any changed or new entry:
+
+```
+The diff report is qa-artifacts/<branch>/diff/index.md, its screenshots beside it. Look at every
+changed and new entry it lists, and the filmstrip of every journey step it links (each tap, a frame
+every 50 ms for a second), as your instructions say, and write qa/<slice>/eyes.md.
+```
+
+**Every metrics flag gets an answer in the ledger.** The reviewer finds why (a request it can see in
+the run's network log, a query count in `Server-Timing`, a chunk in the build metrics), then it's
+fixed, or accepted with a reason the owner would accept. A flag never fails CI, because timings vary;
+an unexplained one is a finding. A *standing* item (a human limit the default branch breaks too) is
+explained once, in the slice that first lists it, with a follow-up named.
+
+**Waiting costs.** Every time an agent wakes, it re-reads its whole conversation, and a wait of more
+than a few minutes lets the prompt cache expire. One until-loop per long run; never a check every
+minute; never a repeat of a long run whose point an earlier run already proved.
+
+The reviewer turns each `wrong` verdict into a finding (Minor at least; Major when a person would be
+misled or can't finish a journey) and weighs each `look again` itself.
+
+## Escapes
+
+When the owner finds a bug by hand that QA passed, the main session adds it to `qa/escapes.md`
+(template: `templates/qa/escapes.md`) before fixing it:
+- what the owner saw
+- why QA missed it
+- the pin that now catches it: a test that fails on the code before the fix
+- the question (**Ask**) the eyes pass will put to every changed screen from then on
+- **which run could have caught it**, naming a run that exists or should have
+- **what changed in the tooling** so the kind is caught next time
+
+An escape is closed only when a tool, skill or agent changed, not by a pin alone: a pin catches that
+bug, a tool catches its kind. A row that can't name a tooling change stays open.
+
+## The retro, and claude_skills
+
+Each slice ends with a retro at the bottom of `qa/<slice>/ledger.md`, before its PR:
+- what QA found late, or round after round, and why it wasn't found in the first run
+- what cost the most (`node scripts/usage.mjs`, `docs/usage.md`)
+- which skill, agent, script or check changed because of it (a change, not an intention)
+
+The lessons that hold beyond the project (how to brief, how to run QA, what to measure) go to the
+`claude_skills` repository as a PR at the slice's end: change the general skill there, and link the
+PR in the retro. If the session can't reach that repository, queue it in the manual-work file.
 
 ## Reading the result
 
@@ -66,9 +155,10 @@ The owner never sees the subagent's report, so relay these yourself:
 - every Blocker and Major, in full
 
 **First, commit and push the reviewer's record at once:** `qa/<slice>/report.md`,
-`qa/<slice>/results.json`, and its `acceptance.md`, `flows.md` and specs. That's the durable record:
-`qa-artifacts/` is gitignored and goes when the VM is reclaimed. If the reviewer didn't write
-`report.md`, write it yourself from its final message before doing anything else.
+`qa/<slice>/results.json`, its `acceptance.md`, `flows.md`, `eyes.md` and specs, and any accessibility
+tree the diff run rewrote (the branch should have committed them; if it hadn't, that's a finding).
+That's the durable record: `qa-artifacts/` is gitignored and goes when the VM is
+reclaimed. If the reviewer didn't write `report.md`, write it yourself from its final message before doing anything else.
 
 Then **publish the HTML report with the Artifact tool** and give the owner the link:
 1. If the reviewer didn't render it, run `node scripts/qa-report.mjs qa-artifacts/<branch>`. Never
@@ -172,5 +262,8 @@ carries its own evidence.
 | `qa/<slice>/acceptance.md`, `qa/<slice>/flows.md` | Yes | Each run adds its section; a scoped run reads the earlier ones after writing its own |
 | `qa/<slice>/ledger.md` | Yes | Tier-1 evidence, and every tier decision |
 | `qa/e2e/*.spec.ts` | Yes | They're the regression suite |
+| `qa/<slice>/eyes.md` | Yes | The eyes pass's answers, screen by screen |
+| `qa/escapes.md` | Yes | Every bug QA missed, the question it added and the tooling change that closed it |
+| the screens' accessibility trees | Yes | CI fails when a screen changes and its tree wasn't updated, so a PR's diff shows which screens changed |
 | `qa/<slice>/report.md`, `qa/<slice>/results.json` | Yes | The findings, verdict and evidence, in the repo, so they outlive the VM |
-| `qa-artifacts/<branch>/` | No | Screenshots, traces and the rendered `report.html`. Published with the Artifact tool, then deleted. Too big to commit, and rebuilt from the rows above when needed. Add it to `.gitignore` |
+| `qa-artifacts/<branch>/` | No | The sweep, the diff report with its base, head and diff images, screenshots, traces and the rendered `report.html`. Published with the Artifact tool, then deleted. Too big to commit, and rebuilt from the rows above when needed. Add it to `.gitignore` |

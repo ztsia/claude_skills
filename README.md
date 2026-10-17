@@ -10,15 +10,19 @@ project mid-slice.
 |---|---|
 | `CLAUDE.md` | The workflow template: handoff rotation, one brief one branch, the owner's rules, models and subagents (the main session as the brain, complete briefs, choosing a model per task), QA tiers. Fill in its `<…>` parts |
 | `.claude/agents/implementer.md` | Carries out a batch already decided; Haiku at high effort by default, Sonnet when the main session judges the task needs it |
-| `.claude/agents/qa-reviewer.md` | Independent QA: criteria from the spec first, mutation checks, database and RLS probes, journeys with screenshots |
+| `.claude/agents/qa-reviewer.md` | Independent QA: criteria from the spec first, the sweep's results, breakage checks and its own probes, database and RLS probes, what it costs, journeys with screenshots; spawns its helpers |
+| `.claude/agents/qa-eyes.md` | The eyes pass: each changed screen and each tap's filmstrip, looked at as a person would, with fixed questions |
 | `.claude/agents/scout.md` | Cheap Haiku lookups over long logs or unfamiliar code |
-| `.claude/skills/qa/` | How a slice is QA'd: the Haiku sweep, the reviewer, the three fix tiers, the published report |
+| `.claude/skills/qa/` | How a slice is QA'd: diff-driven and measured, mechanical checks first, the helpers' templates, the reviewer, escapes and the retro, the three fix tiers, the published report |
 | `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist |
-| `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase |
+| `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |
 | `.claude/skills/dataflow/`, `.claude/skills/prompt/` | Client state; prompts a product sends to a model |
 | `.claude/settings.json`, `scripts/session-start.sh` | The SessionStart hook: points a session at the handoff and the newest slice branch |
 | `scripts/usage.mjs` | What a session cost, by agent and model, from the transcripts; `--log <slice>` keeps a row in `docs/usage.md` |
 | `scripts/qa-report.mjs` | Renders QA's results into the report page the `qa` skill publishes |
+| `templates/qa/` | Starting files for QA's tooling: `limits.ts` (judging metrics against human limits and main), `mutants.ts` (the breakage checks' shape), `escapes.md` (the escape log) |
+| `templates/scripts/mutants.mjs` | Runs the breakage checks in a git worktree |
+| `templates/api/` | A Hono API's route table (for the route sweep) and `Server-Timing` middleware, as examples |
 | `examples/devpos-CLAUDE.md` | An earlier project's CLAUDE.md, for reference |
 
 ## Using it in a project
@@ -32,6 +36,8 @@ cp -r /tmp/claude_skills/.claude/agents /tmp/claude_skills/.claude/skills .claud
 cp /tmp/claude_skills/.claude/settings.json .claude/   # or merge its hook into yours
 cp /tmp/claude_skills/scripts/*.mjs /tmp/claude_skills/scripts/session-start.sh scripts/
 cp /tmp/claude_skills/CLAUDE.md CLAUDE.md               # then fill in the <…> parts
+# QA's tooling starts from templates/: each file's header says how to adapt it
+mkdir -p qa && cp /tmp/claude_skills/templates/qa/* qa/ && cp /tmp/claude_skills/templates/scripts/mutants.mjs scripts/
 echo "qa-artifacts/" >> .gitignore
 ```
 
@@ -62,4 +68,15 @@ with it:
 - **Calm, card-based screens.** An owner's phone review found screens correct but plain: facts and
   actions drawn alike, no icons, nothing primary. The structure rules in `uiux` fixed it across
   forty screens in one pass, built by five agents from one set of blocks.
-
+- **Measure, don't guess causes.** Two bugs the owner found on a phone after QA passed. Sign-in took
+  seconds because the function ran in another region from the database. A deploy needed several
+  restarts to arrive and re-downloaded 3.7 MB. No run measured time, and none spanned a deploy. QA
+  now records time, bytes, CPU and memory from the runs it already makes, judges them against human
+  limits and the default branch, and has the reviewer find each flag's cause; no check names one.
+- **Check the routes once, for all of them.** One slice's QA took four runs (about $60), mostly
+  finding input edge cases one route at a time. A route table and a sweep of the same bad requests
+  at every route replaced that.
+- **Run what a fresh browser never does, and break the code on purpose.** The lived-in journeys
+  (a deploy, resume, offline, a slow network, 200% text), on their first run, found text drawn over
+  text at 200% font size on three screens. The breakage checks, on theirs, found a row lock no test
+  held.

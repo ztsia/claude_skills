@@ -116,6 +116,10 @@ handoff first, then let them compact; afterwards read the handoff you wrote and 
   | `<dev>` | The app locally, with its dev tools |
   | `<test>`, `<typecheck>`, `<lint>`, `<format>` | The fast checks a contributor runs before a push |
   | `<e2e>` | End-to-end tests. Offer an env var that keeps each screenshot as a file (QA's sweep needs it) and one that narrows a long matrix for PR pushes, with the full matrix nightly |
+  | `<route sweep>` | Every route in the route table hit with the same bad requests (usually part of `<test:db>`) |
+  | `node scripts/mutants.mjs` | The breakage checks: each dangerous edit in `qa/mutants.ts`, made in a worktree, must turn a suite red |
+  | `<lived-in journeys>` | The journeys a fresh browser never runs: across a deploy, resume, offline, slow network, large text, a small phone, a year of data |
+  | `<diff against main>` | QA's diff: each screen's tree and pixels against the default branch, the scripted visual checks and the metrics flags, into `qa-artifacts/<branch>/diff/index.md` |
   | `node scripts/usage.mjs` | What this session cost, by agent and model; `--log <slice>` keeps its row in `docs/usage.md` |
   | `node scripts/qa-report.mjs qa-artifacts/<branch>` | Renders QA's report for publishing (the `qa` skill) |
 
@@ -139,6 +143,9 @@ Before sending one, check that it says:
   must not change), pointed at rather than restated
 - **the scope**: the files it owns and the ones it mustn't touch, and what others are editing now
 - **how it proves it's done**: the checks to run, and *wait for long runs to end*
+- **for a measurement, how the person meets the thing, and a time budget** (seen: a brief asked for
+  cold opens, three samples each; it measured first installs, not a phone opening the app from its
+  cache, and took 70 minutes)
 - **its environment**: working directory and absolute paths, a port of its own, *don't commit*
 
 **Choosing the model is a judgment, made per task.** Weigh what's left once the brief is written:
@@ -158,7 +165,8 @@ Before sending one, check that it says:
 | Agent | What it's for |
 |---|---|
 | `implementer` | A batch already decided, owning its own files; several run in parallel, in the background |
-| `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill |
+| `qa-reviewer` (Sonnet; the strongest model when the risk calls for it) | Always, through the `qa` skill. It spawns its own helpers from the skill's templates: the sweep (`implementer` on Haiku) and the eyes pass |
+| `qa-eyes` (the strongest model) | Spawned by `qa-reviewer` only: each changed screen at full size and each tap's filmstrip, answering fixed questions in writing |
 | `scout` (Haiku) | Something too big to read, such as a long log; not what one `grep` answers |
 
 **Working rules:**
@@ -169,18 +177,24 @@ Before sending one, check that it says:
 - **One checkout unless two agents edit the same files.** A worktree agent starts with `pwd` and uses
   only paths under it, and checks out the slice's commit first (a worktree may start at `main`).
 - **Subagents can't start subagents.** What an agent would delegate, the main session starts.
-- **Two end-to-end runs never overlap** when they share ports or build folders.
+- **Two end-to-end runs never overlap** when they share ports or build folders. **Agents running at
+  once each get their own ports and their own build folders, and the brief says who holds the test
+  database.** Two runs that reset one database or bind one port fail each other (seen: two configs on
+  one port, and test runs dropping the shared test database), and the failure looks like a bug in
+  the code under test. With one test database, only one agent runs the suites that reset it.
 - **Measure:** `node scripts/usage.mjs` (from the session's starting directory); `--log <slice>`
   keeps a row in `docs/usage.md` before every handoff and PR. The main session's own context is the
   largest cost, so keep its reading and writing small and hand off early. Measurements go in
   `docs/usage.md`, never here: this file holds principles, not history.
-- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted.
+- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted. Check which model its
+  next turns ran on: one resumed on the strongest model instead of its Sonnet, and cost three times
+  its first run. If it switched, stop it and brief a fresh agent on the right model with the work so far.
 
 ## Skills
 
 | Skill | Use it when |
 |---|---|
-| `qa` | A slice is finished and before its PR, or a non-negotiable was touched. It runs the Haiku sweep, spawns the `qa-reviewer` subagent, and **sets the three tiers for fixing what QA finds**: small fixes self-verified, scoped ones re-checked by resuming the last run's reviewer, and a fresh full run only when a fix reaches the whole flow |
+| `qa` | A slice is finished and before its PR, or a non-negotiable was touched. It spawns the `qa-reviewer` subagent, which runs the mechanical checks first (suites, route sweep, breakage checks, lived-in journeys, metrics, the diff) and looks hard only at what they raise, and **sets the three tiers for fixing what QA finds**: small fixes self-verified, scoped ones re-checked by resuming the last run's reviewer, and a fresh full run only when a fix reaches the whole flow |
 | `uiux` | Choosing components for a screen, building one, or checking one before it's done |
 | `database` | Designing or checking tables, migrations, SQL, RLS policies, views, functions, or an API route or sync that touches data |
 | `dataflow` | Client state, optimistic updates, realtime |
