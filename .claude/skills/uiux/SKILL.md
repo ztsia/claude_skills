@@ -197,6 +197,28 @@ Check every element, new or existing, for these. Fix them before calling the scr
 - CSS transitions at 150 to 250 ms, easing out on entry. Animate `transform` and `opacity` only.
   Motion explains a change. It never decorates.
 - Required state never waits on `animationend`.
+- **Let the person pick the motion on their phone before you build it.** Build a small demo page with
+  a few variants: the screen change, the speed and the press feedback. What reads well on a laptop
+  is often too slow, or too flat, in the hand.
+- **Screen changes have a direction.**
+  - Forward pushes the new screen in from the trailing edge, and back reverses it, including the
+    system back gesture.
+  - A tab switch crossfades.
+  - Use the View Transitions API. A router with view-transition support (TanStack Router's
+    `defaultViewTransition`) also runs it on the history pop the back gesture causes.
+  - Take the direction from the history index, not from which button was pressed.
+- **A history step a sheet pushes, so that back closes it, is not a screen change.** Skip the
+  transition when the URL hasn't changed.
+- **Name only the screen region for the transition, and leave the root unanimated**, so fixed chrome
+  (the tab bar, banners) stays still and plays its own motion live.
+- **One shared element at most**, such as a list row's amount becoming the detail's figure.
+  - Set its `view-transition-name` only while a transition runs, and only on the item tapped.
+  - A duplicate name cancels the whole animation.
+- **A view transition blocks taps while it runs, and capturing the old screen costs one long
+  frame.** Keep screen transitions to 200 ms or under, and measure the capture with the CPU slowed
+  4×.
+- **Numbers never animate between values.** An in-between amount is a figure nobody had.
+- **Reduced motion:** screen and list changes happen at once, and press feedback stays as a tint.
 
 **Content**
 - Dates are unambiguous (*3 Oct*, not *03/10*) and relative when recent. Body text is at least
@@ -243,6 +265,11 @@ Check every element, new or existing, for these. Fix them before calling the scr
 - One navigation, as the patterns doc defines it. No second one.
 - The back gesture does what is expected on every screen, closing the top sheet or dialog first.
   Every overlay registers with the back handler.
+- **Every pushed screen keeps a visible back button.**
+  - An iOS PWA installed on the home screen has no system back gesture; Safari's edge swipe exists
+    only in the browser. There, an edge swipe from the left can drive the same back transition,
+    gated to iOS standalone.
+  - Never add an in-app edge swipe on Android: the system gesture owns both edges.
 - No dead ends. Each screen answers one question or supports one decision.
 
 **Sheets and confirmation**
@@ -253,8 +280,18 @@ Check every element, new or existing, for these. Fix them before calling the scr
   `AlertDialog` for the irreversible.
 
 **Feedback**
-- Optimistic updates. A light haptic on commit if the shell offers one, never on scroll. A toast
-  only when the result is not visible on screen.
+- Optimistic updates. A toast only when the result is not visible on screen.
+- **Every tappable thing answers a press within one frame.**
+  - Start the feedback on `pointerdown`: one delegated listener marks `data-pressed`. `:active` alone
+    can arrive late on touch, while the browser waits to see whether the touch is a scroll.
+  - On Android, a ripple spreading from the finger matches the platform.
+  - Draw it in the shared component (the shadcn part), never at call sites, and remove older
+    `active:` tints so two don't stack.
+- **Haptics on a few moments only:** confirm, undo, an error, a long-press, a toggle, and a pull past
+  a limit. Never on scroll.
+  - On Android, use `View.performHapticFeedback` constants through the shell. They follow the
+    system's touch-feedback setting, which a raw vibration ignores.
+  - The web app checks the shell's version before calling a new bridge method.
 - Loading uses a `Skeleton`, never a full-screen spinner. Pull-to-refresh wherever data syncs.
 
 **Offline**
