@@ -211,12 +211,26 @@ Check every element, new or existing, for these. Fix them before calling the scr
   transition when the URL hasn't changed.
 - **Name only the screen region for the transition, and leave the root unanimated**, so fixed chrome
   (the tab bar, banners) stays still and plays its own motion live.
+  - Set every name, and the root's `animation: none`, only under your own transition types
+    (`:active-view-transition-type(...)`). A name left on all the time makes a permanent stacking
+    context, which changed what covers what in a list. And a global root rule switches off any other
+    view transition the app runs, such as a theme crossfade.
+  - Name the tab bar too, with its old picture hidden and its new one unanimated. Otherwise a moving
+    row is drawn over it.
+  - A tab tapped is a tab change even when it moves back through history (Home from a pushed
+    screen). Have the tab bar mark the tap, rather than leaving it to the history index.
 - **One shared element at most**, such as a list row's amount becoming the detail's figure.
   - Set its `view-transition-name` only while a transition runs, and only on the item tapped.
   - A duplicate name cancels the whole animation.
 - **A view transition blocks taps while it runs, and capturing the old screen costs one long
   frame.** Keep screen transitions to 200 ms or under, and measure the capture with the CPU slowed
   4×.
+- **Animate a list's change when its data arrives, never around the write.** A view transition
+  whose update waits on the network freezes the screen for the whole round trip. Keep the shown
+  value in state, and start the transition when new data comes in.
+- **A ResizeObserver that animates the element it observes feeds itself.** Ignore its callbacks
+  while the animation runs, and measure the next change from where the last one ended. A test
+  that only counts distinct heights won't catch the loop: pin the duration.
 - **Numbers never animate between values.** An in-between amount is a figure nobody had.
 - **Reduced motion:** screen and list changes happen at once, and press feedback stays as a tint.
 

@@ -25,6 +25,10 @@ reviewer infers scope from the branch and its diff and says so. Starting files f
 Skip it for a docs-only change. If `git diff --stat main...HEAD` shows nothing outside docs and
 `*.md` files, say so and stop. (Use the project's default branch if it isn't `main`.)
 
+**Before handing a branch to QA, run the fast checks yourself, unpiped.** A check piped into
+`tail` or `grep` reports the pipe's exit code, not its own, so a failing typecheck looks clean.
+That cost a whole QA run once.
+
 ## Running it
 
 QA is **diff-driven**. It records what every screen *is* (its accessibility tree, committed beside
@@ -74,7 +78,10 @@ Run it in the background and keep working.
 ## The helpers' templates
 
 `qa-reviewer` spawns these with the Agent tool (a subagent may spawn subagents when `Agent` is in its
-tools). Each template fixes the helper's agent, model and prompt; the reviewer fills in only the
+tools). **When it has no Agent tool** (seen in cloud sessions: subagents there can't start
+their own, whatever their agent file lists), it runs the sweep itself from the template, and the
+main session spawns the eyes pass from its template once the diff report exists, so the screens
+still get the strongest model's eyes. Each template fixes the helper's agent, model and prompt; the reviewer fills in only the
 angle brackets. Neither helper judges the slice for the reviewer.
 
 **The sweep** (`subagent_type: "implementer"`, `model: "haiku"`, effort `high`), first, in the
