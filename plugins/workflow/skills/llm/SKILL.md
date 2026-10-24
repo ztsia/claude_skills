@@ -24,8 +24,8 @@ owner confirms, code computes*) and its decisions on model and vendor win over a
 - building, running or reviewing a model call's eval
 - checking a model call before calling it done
 
-Not for: prompting Claude Code itself, `CLAUDE.md`, skills or subagent briefs (the workflow rules,
-*Models and subagents*, cover briefs).
+Not for: prompting Claude Code itself, `CLAUDE.md`, skills or subagent briefs (the `brief` skill
+covers briefs).
 
 ## Sources, in this order
 

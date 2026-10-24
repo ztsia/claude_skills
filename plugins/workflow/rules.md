@@ -67,27 +67,14 @@ be worth the strongest model's price. This is the owner's standing request: spaw
 asked. **Why:** if the strongest model hands the thinking down, the project pays for a brain and gets
 a smaller one.
 
-**A brief that leaves thinking to the subagent is the main session's failure.** Check it says:
-- **the outcome, and every decision behind it** (what's primary, names, behaviour), so nothing is
-  left that a reviewer would argue about
-- **what to copy**: a finished example, or the exact contract (types, keys, test selectors, names
-  that must not change), pointed at rather than restated
-- **the scope**: the files it owns, the ones it mustn't touch, and what others are editing now
-- **how it proves it's done**: the checks to run, and *wait for long runs to end*
-- **for a measurement, how the person meets the thing, and a time budget** (a brief asking for cold
-  opens got first installs instead, in 70 minutes)
-- **its environment**: working directory and absolute paths, a port of its own, *don't commit*
+**Use the `brief` skill before every Agent call that does work, and whenever a report or diff falls
+short.** It holds the brief's template and checks, agents running at once, waiting on long runs and
+what to do on a miss. A brief that leaves thinking to the subagent is the main session's failure.
 
-**Choose the model per task**, by what's left once the brief is written:
-- **Haiku at `high`** (`workflow:implementer`'s default) for anything the brief fully specifies.
-  About a tenth of Sonnet's cost even thinking long. At `low` and `medium` it sometimes reports a
-  change done without running a check.
-- **Sonnet at `medium` or `high`** (`model` and `effort` on the Agent call) when what's left can't be
-  written down in advance: an unknown cause, a large body of unfamiliar code, output that sets a
-  pattern before you can show one. Also to re-run what Haiku failed.
-- **The main session itself** for a change under about 100 lines, a design call, or a
-  non-negotiable's logic.
-- `xhigh` and `max` only for a gain you have measured.
+**Choose the model per task**, by what's left once the brief is written: **Haiku at `high`**
+(`workflow:implementer`'s default) for anything the brief fully specifies; **Sonnet at `medium` or
+`high`** when what's left can't be written down in advance; **the main session itself** for a
+change under about 100 lines, a design call, or a non-negotiable's logic.
 
 | Agent | What it's for |
 |---|---|
@@ -95,20 +82,6 @@ a smaller one.
 | `workflow:qa-reviewer` | Always through the `qa` skill. It spawns its sweep and `workflow:qa-eyes` |
 | `workflow:scout` (Haiku) | Something too big to read, such as a long log; not what one `grep` answers |
 
-**Working rules:**
-- **Build the shared ground first, yourself** (types, building blocks, one finished example), then
-  brief against it. The example is what makes a brief complete.
-- **Review every report and diff:** its file list, and that it ran its checks. Fix what's off, then
-  commit. A report is a claim, not proof.
-- One checkout unless two agents edit the same files. A worktree agent starts with `pwd`, uses only
-  paths under it, and checks out the slice's commit first.
-- Subagents nest up to three layers when their definition allows `Agent`. A delegating agent briefs
-  as completely as you do.
-- **Agents running at once get their own ports and build folders, and the brief says who holds the
-  test database.** Two runs on one port or one database fail each other, and it looks like a bug in
-  the code under test.
+- **Review every report and diff** before committing it. A report is a claim, not proof.
 - **Measure:** `node "${CLAUDE_PLUGIN_ROOT}/scripts/usage.mjs"`, with `--log <slice>` before every
   handoff and PR. Your own context is the largest cost: read and write little, hand off early.
-- An agent stopped at a usage limit is resumed (`SendMessage`), never restarted. Check its next turns
-  ran on its own model; if it switched to the strongest, stop it and brief a fresh one with the work
-  so far.

@@ -8,12 +8,13 @@ from the projects that proved it (Sen's build first).
 
 | Path in `plugins/workflow/` | What it is |
 |---|---|
-| `rules.md` | The workflow's rules: handoff rotation, one brief one branch, the owner's rules, models and subagents. Loaded into every session by the hook, under its 10,000-character limit |
+| `rules.md` | The workflow's rules: handoff rotation, one brief one branch, the owner's rules, the main session as the brain. Loaded into every session by the hook, under its 10,000-character limit |
 | `hooks/hooks.json`, `scripts/session-start.sh` | The SessionStart hook: the rules, a pointer at the handoff and, in the cloud, the newest slice branch |
 | `agents/implementer.md` | `workflow:implementer`: carries out a batch already decided; Haiku at high effort by default, Sonnet when the main session judges the task needs it |
 | `agents/qa-reviewer.md` | `workflow:qa-reviewer`: independent QA. Criteria from the spec first, the sweep's results, breakage checks and its own probes, database and RLS probes, what it costs, journeys with screenshots; spawns its helpers |
 | `agents/qa-eyes.md` | `workflow:qa-eyes`: each changed screen and each tap's filmstrip, looked at as a person would, with fixed questions |
 | `agents/scout.md` | `workflow:scout`: cheap Haiku lookups over long logs or unfamiliar code |
+| `skills/brief/` | How the main session briefs a subagent: choosing the model and effort, the brief's template and checks, agents running at once, waiting on long runs, and what to do on a miss |
 | `skills/qa/` | How a slice is QA'd: diff-driven and measured, mechanical checks first, the helpers' templates, escapes and the retro, the three fix tiers, the published report |
 | `skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure, the size hierarchy and the phone-first checklist. `scripts/refresh.mjs` re-pulls shadcn's docs into the project once they're 90 days old or the project's base library differs |
 | `skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |

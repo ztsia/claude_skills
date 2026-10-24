@@ -10,6 +10,7 @@ scripts/cloud-setup.sh
 scripts/qa-report.mjs
 scripts/session-start.sh
 scripts/usage.mjs
+skills/brief/SKILL.md
 skills/database/SKILL.md
 skills/llm/SKILL.md
 skills/llm/docs/calls.md
