@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: files.txt lists every file in the plugin
         run: |
-          { git ls-files plugins/workflow ':!plugins/workflow/files.txt' | sed 's|^plugins/workflow/||'; echo files.txt; } | sort > /tmp/files.txt
+          { git ls-files plugins/workflow ':!plugins/workflow/files.txt' | sed 's|^plugins/workflow/||'; echo files.txt; } | LC_ALL=C sort > /tmp/files.txt
           diff -u plugins/workflow/files.txt /tmp/files.txt || { echo "::error::plugins/workflow/files.txt is stale; regenerate it (CLAUDE.md, Checks)"; exit 1; }
       - name: scripts parse
         run: |
