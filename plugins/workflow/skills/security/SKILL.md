@@ -173,7 +173,7 @@ export async function updateNote(raw: unknown) {
 - **Run `claude-security` without its menu** by naming the job, scope and effort and accepting the
   cost in one request: *run Claude Security: scan changes on this branch against main at high
   effort; the cost is accepted*. The main session runs it, since it drives its own agents.
-- **Cloud sessions don't install plugins.** `${CLAUDE_PLUGIN_ROOT}/scripts/cloud-setup.sh`, set as the cloud
+- **Cloud sessions don't install plugins.** The workflow plugin's `scripts/cloud-setup.sh` (README), set as the cloud
   environment's setup script, places both plugins and this one where a session loads them. If `/claude-security` isn't
   available in a session, queue the scan in `docs/local.md` and say so in the handoff; the
   mechanical checks still run.

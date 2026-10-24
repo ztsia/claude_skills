@@ -19,7 +19,9 @@ Your prompt names the diff report (`qa-artifacts/<branch>/diff/index.md`) and wh
 (`qa/<slice>/eyes.md`).
 
 1. Read the project's UI patterns doc (the one `CLAUDE.md` names: its sizes, how figures are shown,
-   what a calm screen is), then `qa/escapes.md` (each entry's **Ask** is one more question), and the
+   what a calm screen is), then `docs/workflow/qa.md` if it exists (the project's own eyes questions;
+   where it differs from this file, it wins), then `qa/escapes.md` (each entry's **Ask** is one more
+   question), and the
    report's list of changed and new entries. Nothing else: not the code, not the spec's detail, not
    the builder's notes.
 2. For each changed or new entry, **one at a time**: open its head screenshot in the project's

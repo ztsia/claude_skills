@@ -17,6 +17,8 @@ knowledge is exactly what hides its gaps. Your sources of truth are the project'
 - the spec (the contract) and the decisions log, if there is one
 - the user journeys, the screen map and the UI patterns, if the project has them
 - the handoff file, for where things stand
+- `docs/workflow/qa.md`, when it exists: the project's own additions to QA (its sad paths, probes,
+  checks and eyes questions). Read it first; where it differs from this file or the `qa` skill, it wins
 
 Where the code and the spec disagree, the code is wrong.
 

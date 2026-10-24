@@ -25,6 +25,9 @@ into it.
    `templates/scripts/mutants.mjs` into `scripts/`. Each file's header says how to adapt it.
    `templates/api/` holds examples (a route table, `Server-Timing` middleware) for a project with an
    API; the `database` skill says when to use them.
+   The `uiux` skill's shadcn docs are pulled for one base library and framework (its
+   `components-index.md` names them). A project on another one re-pulls them on first use, as the
+   skill's staleness rule says; that's expected, not an error.
 6. **`docs/`**, each only if missing:
    - `handoff.md`: *Where things stand*, *Decided*, *Open with the owner*, *Do first*, *Settled*.
    - `decisions.md`: a heading and an empty numbered list (D1, D2, …).
@@ -35,7 +38,8 @@ into it.
    - on each machine, once: `claude plugin install claude-security@claude-plugins-official` and
      `claude plugin install security-guidance@claude-plugins-official`
    - at claude.ai/code, for the project's cloud environment: paste
-     `${CLAUDE_PLUGIN_ROOT}/scripts/cloud-setup.sh` into its setup script. Cloud sessions don't
+     https://raw.githubusercontent.com/ztsia/workflow/main/plugins/workflow/scripts/cloud-setup.sh
+     into its setup script. Cloud sessions don't
      install the plugins a repository enables; this script places them where a session loads them.
 
 ## A project with its own copies
@@ -45,7 +49,7 @@ plugin's agents and skills are namespaced, so `qa` and `workflow:qa` sit side by
 ones go. Move a project only between slices, never on a slice's branch.
 
 1. **Agents and skills.** For each of `.claude/agents/{implementer,qa-reviewer,qa-eyes,scout}.md` and
-   `.claude/skills/{qa,uiux,database,llm,security}/`, compare it with the plugin's version:
+   `.claude/skills/{qa,uiux,database,llm,security,brief}/`, compare it with the plugin's version:
    `git diff --no-index <project copy> "${CLAUDE_PLUGIN_ROOT}/<agents|skills>/<name>"`. Sort each
    difference:
    - **true of this project only** (its stack, its patterns, a rule it chose): into
@@ -63,12 +67,16 @@ ones go. Move a project only between slices, never on a slice's branch.
    project's own facts, in `templates/CLAUDE.md`'s sections. Where the project departs from the
    rules, write it under *Overrides*, with the decision that chose it.
 3. **Scripts.** `scripts/usage.mjs` and `scripts/qa-report.mjs` are the plugin's now: delete them,
-   and point any project doc that runs them at `node "${CLAUDE_PLUGIN_ROOT}/scripts/<name>"`. Keep
+   and point any project doc that runs them at the plugin's copy, written as
+   `node "<workflow plugin>/scripts/<name>"`, the folder the workflow rules name at the start of
+   each session. Never write this session's absolute path into a doc: in a cloud session the plugin
+   is somewhere else. Keep
    the project's part of `scripts/session-start.sh` (its installs, a local database) as
    `scripts/session-setup.sh`, and delete the rest; the plugin's hook loads the rules, points at the
    handoff and names the newest slice branch. Keep `scripts/mutants.mjs` and `qa/`.
 4. **`.claude/settings.json`**: merge in `templates/settings.json`, replacing the old hook that ran
-   `scripts/session-start.sh`.
+   `scripts/session-start.sh`. Add `.claude/claude-security-guidance.md` from
+   `templates/claude-security-guidance.md` if the project has none.
 5. **Check:** start a fresh session in the project and confirm it opens with the workflow rules, that
    `/agents` lists `workflow:implementer`, and that the old names are gone. Say in the PR what moved
    where.
