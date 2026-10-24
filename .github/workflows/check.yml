@@ -1,0 +1,19 @@
+name: check
+on:
+  push:
+  pull_request:
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: files.txt lists every file in the plugin
+        run: |
+          { git ls-files plugins/workflow ':!plugins/workflow/files.txt' | sed 's|^plugins/workflow/||'; echo files.txt; } | LC_ALL=C sort > /tmp/files.txt
+          diff -u plugins/workflow/files.txt /tmp/files.txt || { echo "::error::plugins/workflow/files.txt is stale; regenerate it (CLAUDE.md, Checks)"; exit 1; }
+      - name: scripts parse
+        run: |
+          for f in $(git ls-files '*.sh'); do bash -n "$f"; done
+          for f in $(git ls-files '*.mjs'); do node --check "$f"; done
+      - name: rules.md under 8,000 characters
+        run: test "$(wc -c < plugins/workflow/rules.md)" -lt 8000

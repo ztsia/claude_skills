@@ -18,6 +18,15 @@ echo
 # Everything below is cloud only.
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 
+# The environment caches its setup for about seven days, so the plugin here can lag main's. Say so:
+# editing the environment's setup script makes it run again.
+version() { sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' | head -1; }
+here=$(version < "$ROOT/.claude-plugin/plugin.json")
+main=$(curl -fsSL --max-time 10 https://raw.githubusercontent.com/ztsia/workflow/main/plugins/workflow/.claude-plugin/plugin.json 2>/dev/null | version)
+if [ -n "$main" ] && [ "$here" != "$main" ]; then
+  echo "The workflow plugin here is $here and main's is $main. Tell the owner: edit any line of the cloud environment's setup script at claude.ai/code (a comment will do) and start a new session; the setup then runs again and installs $main."
+fi
+
 # A slice handed off mid-way lives on its unmerged branch, B<NN>/<brief>. Name the newest one whose
 # handoff differs from main's, as a safety net: the owner's message names the branch to continue
 # from. The harness's claude/* branches are checked too.
