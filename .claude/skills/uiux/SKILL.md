@@ -5,9 +5,7 @@ description: How to build a screen with shadcn/ui and keep it inside the project
 
 # UI/UX: shadcn/ui and one set of patterns
 
-You are a senior product designer who ships shadcn/ui. This skill is knowledge, not a mode: loading
-it gives you what to do and what must be true. It never asks which mode to run in, and it never
-produces an audit report for someone else to act on. Build or fix the screen, hold it to the
+You are a senior product designer who ships shadcn/ui. Build or fix the screen, hold it to the
 checklist, and correct what fails.
 
 You have two jobs: pick the right components, and keep every screen inside the project's shared
@@ -30,11 +28,39 @@ does not hang together.
 3. **The components already in the repo** (usually `components/ui/` and a folder of composed blocks).
    Read a component's source before recommending it. The source is the documentation, and its props
    are the real ones.
-4. **`.claude/skills/uiux/docs/components-index.md`**, read in full. Shortlist with its *When to
-   use* column and its disambiguation notes. Then read each shortlisted `<component>.md` in full:
+4. **`.claude/skills/uiux/components-index.md`**, read in full. Shortlist with its *When to
+   use* column and its disambiguation notes. Then read each shortlisted `docs/components/<component>.md` in full:
    variants, props, examples and sub-components. Never open a doc speculatively.
-5. **`.claude/skills/uiux/docs/instructions/`** for theming, dark mode and `components.json`.
+5. **`.claude/skills/uiux/docs/instructions/`** for theming, dark mode, `components.json`, and
+   forms (`forms-*.md`, one per form library).
 6. **Other skills** the project has, for charts, the official shadcn skill (current APIs), and so on.
+
+## Keep the component docs current
+
+The component docs are shadcn's own doc source, for one base library (`radix`, `base` or `aria`)
+and one framework. `components-index.md` opens with `last_checked`, the `upstream` commit, the
+`base` and the `framework`. Before relying on them:
+
+1. **The docs are stale** when any of these holds:
+   - `last_checked` is more than 90 days ago.
+   - The project's base library or framework (`npx shadcn@latest info --json`, or
+     `components.json`) differs from the index's `base` or `framework`.
+   - The project has a component in `components/ui/` that the index doesn't list.
+   - A prop or variant a doc shows doesn't exist in the installed component's source.
+2. **When they're stale, re-pull them:** `node .claude/skills/uiux/scripts/refresh.mjs` from the
+   project root (it reads the base and framework from the project; `--base` and `--framework`
+   override). It rewrites the docs from shadcn's repo, deletes the ones shadcn removed, stamps the
+   index, and prints what was added, removed and changed. It takes about a minute.
+3. **Then update the index in the background.** Spawn one agent with `refresh.md` as its brief
+   and the script's output. Keep working meanwhile. The installed component's source is the truth
+   for its props either way.
+4. **When it returns, review the index diff**, decide each `SKILL.md` line its report raises, and
+   edit this file yourself. Commit the refresh on its own (*uiux: refresh component docs*).
+5. **Send it upstream.** A project keeps its own copy of this skill, so add a line to
+   `docs/local.md`: copy the refreshed docs back to `claude_skills`.
+
+With no network access, carry on with the docs as they are and add the refresh to `docs/local.md`.
+Never stop to ask.
 
 ## Structure: calm, card-based screens
 
@@ -73,7 +99,7 @@ rules prevent that. The project's patterns doc should name a block for each.
 | A how-to | Steps: numbered, done ones ticked, the next one's button main | `Card`, `Button` |
 | A person | Person row: initials avatar, name, state badge, amount | `Avatar`, `Badge`, `Item` |
 | A few figures | Stat tiles | `Card` |
-| Pages of one kind | Step pager: named steps on top, one card at a time | `ToggleGroup` + scroll snap |
+| Pages of one kind | Step pager: named steps on top, one card at a time | `ToggleGroup` (`spacing={0}`) + scroll snap |
 
 **Build the blocks and two reference screens first,** before the rest of the screens. Every other
 screen, and every brief for one, then points at a finished example.
@@ -248,6 +274,8 @@ Check every element, new or existing, for these. Fix them before calling the scr
 **Sheets and confirmation**
 - Bottom sheets (`Drawer`) for choices and short forms. Not `Sheet` from the side, and nothing
   important behind a `Popover`.
+- A form field with a short, fixed list of options is a `NativeSelect`: it opens the phone's own
+  picker. A long or searchable list is a `Combobox`.
 - **Undo instead of confirm:** act at once, then offer *Undo* in a `Sonner` toast (auto-dismiss
   around 6 s, never piling up). This applies to delete and other reversible edits. Keep
   `AlertDialog` for the irreversible.

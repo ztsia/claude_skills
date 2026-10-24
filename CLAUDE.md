@@ -176,7 +176,11 @@ Before sending one, check that it says:
   then commit. A report is a claim, not proof.
 - **One checkout unless two agents edit the same files.** A worktree agent starts with `pwd` and uses
   only paths under it, and checks out the slice's commit first (a worktree may start at `main`).
-- **Subagents can't start subagents.** What an agent would delegate, the main session starts.
+- **A subagent can start subagents when its definition allows `Agent`**: listed in `tools`, or
+  `tools` omitted. Nesting goes up to three layers below the main session
+  (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`). `implementer`, `qa-reviewer` and `qa-eyes` list it;
+  `scout` doesn't. A delegating agent briefs its subagent as completely as the main session briefs
+  it, inside its own scope.
 - **Two end-to-end runs never overlap** when they share ports or build folders. **Agents running at
   once each get their own ports and their own build folders, and the brief says who holds the test
   database.** Two runs that reset one database or bind one port fail each other (seen: two configs on
@@ -198,10 +202,10 @@ Before sending one, check that it says:
 | `uiux` | Choosing components for a screen, building one, or checking one before it's done |
 | `database` | Designing or checking tables, migrations, SQL, RLS policies, views, functions, or an API route or sync that touches data |
 | `dataflow` | Client state, optimistic updates, realtime |
-| `prompt` | Writing or reviewing a prompt the product sends to a model |
+| `llm` | Writing, changing or checking a prompt the product sends to a model, or moving a call to a new model. It keeps dated notes per vendor and refreshes a stale one in the background |
 
 Skills are model-invoked from their descriptions, so no session needs to be told to use one.
-**Our own skills are knowledge, not modes** (`dataflow` and `prompt` still run as audits, to be
+**Our own skills are knowledge, not modes** (`dataflow` still runs as an audit, to be
 converted the same way). Invoking one loads what to do and what must be true; it
 never asks which mode to run in or produces an audit report for someone else to act on. Build
 sessions run unattended and call skills themselves. Where a vendor skill disagrees with ours, the

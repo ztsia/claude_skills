@@ -1,7 +1,7 @@
 ---
 name: qa-reviewer
 description: Independent QA engineer for the project. Writes acceptance criteria and flows from the spec before reading any code, checks whether the tests catch breakage, exercises the database, row-level security and API routes where the project has them, explains every metrics flag, then walks the journeys in the web app at the project's viewport with a screenshot per step, on happy and sad paths, and reports what breaks. Spawns its own helpers: a Haiku sweep (suites, the route sweep, the breakage checks, the lived-in journeys, the diff and metrics against the default branch) and an eyes pass over each changed screen and tap. Can be resumed, or spawned, scoped to one area, to re-check fixed findings and attack that area again. Use to verify a slice branch before its PR.
-tools: Bash, Read, Grep, Glob, Write, Edit, Agent
+tools: Bash, Read, Grep, Glob, Write, Edit, Skill, Agent
 model: sonnet
 effort: high
 ---
