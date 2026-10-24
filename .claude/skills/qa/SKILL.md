@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Independent QA pass on the current branch before its PR, plus the rules for fixing what it finds. Diff-driven and measured: mechanical checks first (the suites, a route sweep, breakage checks, lived-in journeys, metrics flags, a diff of every screen against the default branch), then a clean-context reviewer who writes acceptance criteria and flows from the spec, explains every flag, and an eyes pass that looks at each changed screen and tap as a person would. Never guesses causes: it measures. Every finished slice gets a full run. Fixes then go by three tiers. Small: the main session fixes and verifies itself. Scoped: the last run's reviewer is resumed on the area the fixes touched. Full: a fresh full run, only when a fix reaches the whole flow. Bugs the owner finds by hand go in qa/escapes.md and close only with a tooling change. Use when a slice is finished, before a PR, when a non-negotiable was touched, or when asked to verify, QA or review work.
+description: Independent QA pass on the current branch before its PR, plus the rules for fixing what it finds. Diff-driven and measured: mechanical checks first (the suites, the security checks, a route sweep, breakage checks, lived-in journeys, metrics flags, a diff of every screen against the default branch), then a clean-context reviewer who writes acceptance criteria and flows from the spec, explains every flag, and an eyes pass that looks at each changed screen and tap as a person would. A slice that touches auth, data access, secrets, uploads, payments, webhooks, a model call, dependencies or CI also gets a claude-security scan of its diff. Never guesses causes: it measures. Every finished slice gets a full run. Fixes then go by three tiers. Small: the main session fixes and verifies itself. Scoped: the last run's reviewer is resumed on the area the fixes touched. Full: a fresh full run, only when a fix reaches the whole flow. Bugs the owner finds by hand go in qa/escapes.md and close only with a tooling change. Use when a slice is finished, before a PR, when a non-negotiable was touched, or when asked to verify, QA or review work.
 ---
 
 # QA pass
@@ -41,12 +41,14 @@ finds the cause of each flag.
 
 **The order is mechanical first, then judgement on what the machines raised:**
 1. the suites (typecheck, lint, unit, database, e2e)
-2. the route sweep: every route in the route table hit with the same bad requests
-3. the breakage checks: dangerous edits made in a worktree, each of which a suite must catch
-4. the lived-in journeys: across a deploy, resume from the background, offline, a slow network,
+2. the security checks: the dependency audit, the secret scan and the stack's security lint rules
+   (the `security` skill)
+3. the route sweep: every route in the route table hit with the same bad requests
+4. the breakage checks: dangerous edits made in a worktree, each of which a suite must catch
+5. the lived-in journeys: across a deploy, resume from the background, offline, a slow network,
    200% text, a small phone, a year of data
-5. the metrics flags
-6. the diff against the default branch
+6. the metrics flags
+7. the diff against the default branch
 
 The reviewer then spends its judgement on the flags, the surviving breakage checks and the changed
 screens, and on the criteria it writes from the spec. It does not re-derive input edge cases route by
@@ -71,6 +73,30 @@ route at a time.
 
 Run it in the background and keep working.
 
+## The security scan
+
+For a slice that touches a risky area, the main session also runs the `claude-security` plugin's
+scan of the branch, alongside the reviewer. A slice is risky when its diff touches any of:
+- auth, sessions, roles, invitations or an admin feature
+- a route, server action or query that reads or writes data, a migration or an RLS policy
+- secrets or environment variables, uploads, downloads or exports, payments, webhooks
+- an outbound request to a URL from input, a model call
+- dependencies, a lockfile, a Dockerfile or a CI workflow
+
+1. Ask for it in one request, so it skips its menu: *run Claude Security: scan changes on this
+   branch against main at high effort; the cost is accepted*. Before a release, scan the codebase
+   instead, at the same effort.
+2. It writes `CLAUDE-SECURITY-<timestamp>/`, which ignores itself in git. Copy its
+   `CLAUDE-SECURITY-RESULTS.md` to `qa/<slice>/security.md` and commit that.
+3. Its findings join the reviewer's, by severity: **Critical** and **High** are Blockers,
+   **Medium** is Major, **Low** is Minor. They're fixed by the tiers below; a fix for one is
+   re-checked by scanning the fix's commit the same way.
+4. **When `/claude-security` isn't available** (a cloud environment without `scripts/cloud-setup.sh`
+   as its setup script), queue the scan in the manual-work file with the branch and the scan to run,
+   and say so in the report and the handoff. The security checks in the sweep still run.
+
+Don't hand the scan's findings to the reviewer, for the same reason as above: it derives its own.
+
 ## The helpers' templates
 
 `qa-reviewer` spawns these with the Agent tool (a subagent may spawn subagents when `Agent` is in its
@@ -86,6 +112,7 @@ Goal: QA's raw results for branch <branch>, gathered in qa-artifacts/<branch>/sw
 no fixes, no reading of source beyond a failure's first lines.
 Run, from <absolute path of the checkout>, one at a time, each to its end, keeping each exit code:
   <typecheck>; <lint>; <unit tests>
+  <security checks>
   <database tests, including the route sweep>
   <e2e, with the env var that writes each screenshot to qa-artifacts/<branch>/sweep/screens>
   <lived-in journeys>
@@ -263,6 +290,7 @@ carries its own evidence.
 | `qa/<slice>/ledger.md` | Yes | Tier-1 evidence, and every tier decision |
 | `qa/e2e/*.spec.ts` | Yes | They're the regression suite |
 | `qa/<slice>/eyes.md` | Yes | The eyes pass's answers, screen by screen |
+| `qa/<slice>/security.md` | Yes | The security scan's report, for a risky slice. Its own `CLAUDE-SECURITY-<timestamp>/` folder ignores itself in git |
 | `qa/escapes.md` | Yes | Every bug QA missed, the question it added and the tooling change that closed it |
 | the screens' accessibility trees | Yes | CI fails when a screen changes and its tree wasn't updated, so a PR's diff shows which screens changed |
 | `qa/<slice>/report.md`, `qa/<slice>/results.json` | Yes | The findings, verdict and evidence, in the repo, so they outlive the VM |
