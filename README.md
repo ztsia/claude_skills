@@ -17,8 +17,11 @@ project mid-slice.
 | `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist. Its shadcn docs are re-pulled from shadcn's repo by `scripts/refresh.mjs` once they're 90 days old or the project's components or base library differ |
 | `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |
 | `.claude/skills/llm/` | Model calls in a product: prompts, checking an existing prompt, API errors, caching, cost, moving models, and evals (`docs/evals.md`), plus dated notes per vendor in `docs/vendors/` (Anthropic, OpenAI, Google) that a session refreshes from the official docs once they're 90 days old or a project calls a model they don't list |
+| `.claude/skills/security/` | A product's own code without vulnerabilities: trust boundaries, access control per object, injection, XSS, secrets, uploads, SSRF, webhooks, abuse limits (`docs/web.md`), dependencies, secrets in the repo, CI and containers (`docs/supply-chain.md`), checking code and reporting a finding (`docs/review.md`), plus dated notes per stack in `docs/stacks/` (TypeScript, Python, Go). A session reads only the note for the stack it's working in, and refreshes it from the official docs once it's 90 days old |
+| `.claude/claude-security-guidance.md` | The project's security rules, read by the `security-guidance` plugin's reviews. Add the project's own lines |
 | `.claude/skills/dataflow/` | Client state |
-| `.claude/settings.json`, `scripts/session-start.sh` | The SessionStart hook: points a session at the handoff and the newest slice branch |
+| `.claude/settings.json`, `scripts/session-start.sh` | The SessionStart hook: points a session at the handoff and the newest slice branch. `ENABLE_STOP_REVIEW=0` keeps `security-guidance` to its edit warnings and commit reviews |
+| `scripts/cloud-setup.sh` | The cloud environment's setup script: places Anthropic's `claude-security` and `security-guidance` plugins under `~/.claude/skills/`, where a cloud session loads them |
 | `scripts/usage.mjs` | What a session cost, by agent and model, from the transcripts; `--log <slice>` keeps a row in `docs/usage.md` |
 | `scripts/qa-report.mjs` | Renders QA's results into the report page the `qa` skill publishes |
 | `templates/qa/` | Starting files for QA's tooling: `limits.ts` (judging metrics against human limits and main), `mutants.ts` (the breakage checks' shape), `escapes.md` (the escape log) |
@@ -34,8 +37,9 @@ From the project's root:
 git clone --depth 1 https://github.com/ztsia/claude_skills /tmp/claude_skills
 mkdir -p .claude scripts
 cp -r /tmp/claude_skills/.claude/agents /tmp/claude_skills/.claude/skills .claude/
+cp /tmp/claude_skills/.claude/claude-security-guidance.md .claude/
 cp /tmp/claude_skills/.claude/settings.json .claude/   # or merge its hook into yours
-cp /tmp/claude_skills/scripts/*.mjs /tmp/claude_skills/scripts/session-start.sh scripts/
+cp /tmp/claude_skills/scripts/*.mjs /tmp/claude_skills/scripts/*.sh scripts/
 cp /tmp/claude_skills/CLAUDE.md CLAUDE.md               # then fill in the <…> parts
 # QA's tooling starts from templates/: each file's header says how to adapt it
 mkdir -p qa && cp /tmp/claude_skills/templates/qa/* qa/ && cp /tmp/claude_skills/templates/scripts/mutants.mjs scripts/
@@ -48,8 +52,16 @@ Then, in the project:
   `docs/briefs/`.
 - Give the e2e setup an env var that writes each screenshot to a file (QA's sweep needs it).
 - Tailor `uiux` and `database` to the project's stack in place, the way Sen did; keep the rules.
+- Delete the `security` stack notes for stacks the project doesn't use, if you like; a session reads
+  only the one it needs either way.
+- Fill in `<security checks>` in `CLAUDE.md` from the stack note's *Checks to run*, and add it to CI.
 
-Cloud sessions don't load plugins, which is why everything is plain files in `.claude/`.
+The security plugins, once per machine and once per cloud environment:
+- **Locally:** `claude plugin install claude-security@claude-plugins-official` and
+  `claude plugin install security-guidance@claude-plugins-official` (user scope, the default).
+- **In the cloud:** paste `scripts/cloud-setup.sh` into the environment's setup script at
+  claude.ai/code. Cloud sessions don't install the plugins a repository enables, which is why the
+  rest of the kit is plain files in `.claude/`; a plugin folder under `~/.claude/skills/` does load.
 
 ## Where the rules came from
 

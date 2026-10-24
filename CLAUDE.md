@@ -115,6 +115,7 @@ handoff first, then let them compact; afterwards read the handoff you wrote and 
   | `<install>` | Install everything |
   | `<dev>` | The app locally, with its dev tools |
   | `<test>`, `<typecheck>`, `<lint>`, `<format>` | The fast checks a contributor runs before a push |
+  | `<security checks>` | The dependency audit, a secret scan and the stack's security lint rules (the `security` skill's stack note), failing on a high or critical result. Runs in CI and in QA's sweep |
   | `<e2e>` | End-to-end tests. Offer an env var that keeps each screenshot as a file (QA's sweep needs it) and one that narrows a long matrix for PR pushes, with the full matrix nightly |
   | `<route sweep>` | Every route in the route table hit with the same bad requests (usually part of `<test:db>`) |
   | `node scripts/mutants.mjs` | The breakage checks: each dangerous edit in `qa/mutants.ts`, made in a worktree, must turn a suite red |
@@ -203,6 +204,13 @@ Before sending one, check that it says:
 | `database` | Designing or checking tables, migrations, SQL, RLS policies, views, functions, or an API route or sync that touches data |
 | `dataflow` | Client state, optimistic updates, realtime |
 | `llm` | Writing, changing or checking a prompt the product sends to a model, or moving a call to a new model. It keeps dated notes per vendor and refreshes a stale one in the background |
+| `security` | Writing or checking routes, actions, auth, uploads, webhooks, outbound requests, dependencies or CI, and code that handles secrets or personal data. It keeps dated notes per stack, reads only the one in use, and refreshes a stale one in the background |
+
+**Two plugins from Anthropic's official marketplace back `security`:** `security-guidance` (a
+warning on each dangerous edit and a review of each commit, reading `.claude/claude-security-guidance.md`)
+and `claude-security` (the verified scan QA runs on a risky slice). A local machine installs both at
+user scope. Cloud sessions don't install plugins, so the cloud environment's setup script is
+`scripts/cloud-setup.sh`, which places them where a session loads them.
 
 Skills are model-invoked from their descriptions, so no session needs to be told to use one.
 **Our own skills are knowledge, not modes** (`dataflow` still runs as an audit, to be
