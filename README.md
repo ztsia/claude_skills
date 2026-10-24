@@ -1,67 +1,72 @@
-# claude_skills
+# workflow
 
-Shared Claude Code skills, agents and workflow, taken from the projects that proved them (Sen's
-build first). A project copies what it needs and keeps its own copy, so a change here never breaks a
-project mid-slice.
+A Claude Code plugin for building a product with Claude: the main session decides and talks with
+the owner, subagents build, QA checks every slice, and every session hands off to the next. Taken
+from the projects that proved it (Sen's build first).
 
-## What's here
+## What's in it
 
-| Path | What it is |
+| Path in `plugins/workflow/` | What it is |
 |---|---|
-| `CLAUDE.md` | The workflow template: handoff rotation, one brief one branch, the owner's rules, models and subagents (the main session as the brain, complete briefs, choosing a model per task), QA tiers. Fill in its `<…>` parts |
-| `.claude/agents/implementer.md` | Carries out a batch already decided; Haiku at high effort by default, Sonnet when the main session judges the task needs it |
-| `.claude/agents/qa-reviewer.md` | Independent QA: criteria from the spec first, the sweep's results, breakage checks and its own probes, database and RLS probes, what it costs, journeys with screenshots; spawns its helpers |
-| `.claude/agents/qa-eyes.md` | The eyes pass: each changed screen and each tap's filmstrip, looked at as a person would, with fixed questions |
-| `.claude/agents/scout.md` | Cheap Haiku lookups over long logs or unfamiliar code |
-| `.claude/skills/qa/` | How a slice is QA'd: diff-driven and measured, mechanical checks first, the helpers' templates, the reviewer, escapes and the retro, the three fix tiers, the published report |
-| `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist. Its shadcn docs are re-pulled from shadcn's repo by `scripts/refresh.mjs` once they're 90 days old or the project's components or base library differ |
-| `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |
-| `.claude/skills/llm/` | Model calls in a product: prompts, checking an existing prompt, API errors, caching, cost, moving models, and evals (`docs/evals.md`), plus dated notes per vendor in `docs/vendors/` (Anthropic, OpenAI, Google) that a session refreshes from the official docs once they're 90 days old or a project calls a model they don't list |
-| `.claude/skills/security/` | A product's own code without vulnerabilities: trust boundaries, access control per object, injection, XSS, secrets, uploads, SSRF, webhooks, abuse limits (`docs/web.md`), dependencies, secrets in the repo, CI and containers (`docs/supply-chain.md`), checking code and reporting a finding (`docs/review.md`), plus dated notes per stack in `docs/stacks/` (TypeScript, Python, Go). A session reads only the note for the stack it's working in, and refreshes it from the official docs once it's 90 days old |
-| `.claude/claude-security-guidance.md` | The project's security rules, read by the `security-guidance` plugin's reviews. Add the project's own lines |
-| `.claude/skills/dataflow/` | Client state |
-| `.claude/settings.json`, `scripts/session-start.sh` | The SessionStart hook: points a session at the handoff and the newest slice branch. `ENABLE_STOP_REVIEW=0` keeps `security-guidance` to its edit warnings and commit reviews |
-| `scripts/cloud-setup.sh` | The cloud environment's setup script: places Anthropic's `claude-security` and `security-guidance` plugins under `~/.claude/skills/`, where a cloud session loads them |
-| `scripts/usage.mjs` | What a session cost, by agent and model, from the transcripts; `--log <slice>` keeps a row in `docs/usage.md` |
+| `rules.md` | The workflow's rules: handoff rotation, one brief one branch, the owner's rules, models and subagents. Loaded into every session by the hook, under its 10,000-character limit |
+| `hooks/hooks.json`, `scripts/session-start.sh` | The SessionStart hook: the rules, a pointer at the handoff and, in the cloud, the newest slice branch |
+| `agents/implementer.md` | `workflow:implementer`: carries out a batch already decided; Haiku at high effort by default, Sonnet when the main session judges the task needs it |
+| `agents/qa-reviewer.md` | `workflow:qa-reviewer`: independent QA. Criteria from the spec first, the sweep's results, breakage checks and its own probes, database and RLS probes, what it costs, journeys with screenshots; spawns its helpers |
+| `agents/qa-eyes.md` | `workflow:qa-eyes`: each changed screen and each tap's filmstrip, looked at as a person would, with fixed questions |
+| `agents/scout.md` | `workflow:scout`: cheap Haiku lookups over long logs or unfamiliar code |
+| `skills/qa/` | How a slice is QA'd: diff-driven and measured, mechanical checks first, the helpers' templates, escapes and the retro, the three fix tiers, the published report |
+| `skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure, the size hierarchy and the phone-first checklist. `scripts/refresh.mjs` re-pulls shadcn's docs into the project once they're 90 days old or the project's base library differs |
+| `skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |
+| `skills/llm/` | Model calls in a product: prompts, checking an existing prompt, API errors, caching, cost, moving models and evals, with dated notes per vendor (Anthropic, OpenAI, Google) refreshed from the official docs |
+| `skills/security/` | A product's own code without vulnerabilities, with dated notes per stack (TypeScript, Python, Go), of which a session reads only the one in use |
+| `skills/setup/` | `/workflow:setup`: sets a project up, or moves one with its own copies onto the plugin |
+| `scripts/usage.mjs` | What a session cost, by agent and model; `--log <slice>` keeps a row in the project's `docs/usage.md` |
 | `scripts/qa-report.mjs` | Renders QA's results into the report page the `qa` skill publishes |
-| `templates/qa/` | Starting files for QA's tooling: `limits.ts` (judging metrics against human limits and main), `mutants.ts` (the breakage checks' shape), `escapes.md` (the escape log) |
-| `templates/scripts/mutants.mjs` | Runs the breakage checks in a git worktree |
-| `templates/api/` | A Hono API's route table (for the route sweep) and `Server-Timing` middleware, as examples |
-| `examples/devpos-CLAUDE.md` | An earlier project's CLAUDE.md, for reference |
+| `scripts/cloud-setup.sh` | The cloud environment's setup script: places this plugin and Anthropic's `claude-security` and `security-guidance` under `~/.claude/skills/`, where a cloud session loads them |
+| `templates/` | A project's own files: `CLAUDE.md`, `settings.json`, `scripts/session-setup.sh`, `claude-security-guidance.md`, QA's tooling (`qa/`, `scripts/mutants.mjs`) and API examples (`api/`) |
+
+`examples/devpos-CLAUDE.md` is an earlier project's CLAUDE.md, kept for reference.
 
 ## Using it in a project
 
-From the project's root:
+**On each machine, once:**
 
 ```bash
-git clone --depth 1 https://github.com/ztsia/claude_skills /tmp/claude_skills
-mkdir -p .claude scripts
-cp -r /tmp/claude_skills/.claude/agents /tmp/claude_skills/.claude/skills .claude/
-cp /tmp/claude_skills/.claude/claude-security-guidance.md .claude/
-cp /tmp/claude_skills/.claude/settings.json .claude/   # or merge its hook into yours
-cp /tmp/claude_skills/scripts/*.mjs /tmp/claude_skills/scripts/*.sh scripts/
-cp /tmp/claude_skills/CLAUDE.md CLAUDE.md               # then fill in the <…> parts
-# QA's tooling starts from templates/: each file's header says how to adapt it
-mkdir -p qa && cp /tmp/claude_skills/templates/qa/* qa/ && cp /tmp/claude_skills/templates/scripts/mutants.mjs scripts/
-echo "qa-artifacts/" >> .gitignore
+claude plugin marketplace add ztsia/workflow
+claude plugin install claude-security@claude-plugins-official
+claude plugin install security-guidance@claude-plugins-official
 ```
 
-Then, in the project:
-- Fill in `CLAUDE.md`: the project, its non-negotiables, stack, commands and layout.
-- Create `docs/handoff.md`, `docs/decisions.md` and, when the build is sliced, `docs/modules.md` and
-  `docs/briefs/`.
-- Give the e2e setup an env var that writes each screenshot to a file (QA's sweep needs it).
-- Tailor `uiux` and `database` to the project's stack in place, the way Sen did; keep the rules.
-- Delete the `security` stack notes for stacks the project doesn't use, if you like; a session reads
-  only the one it needs either way.
-- Fill in `<security checks>` in `CLAUDE.md` from the stack note's *Checks to run*, and add it to CI.
+**In each project**, from its root: `claude plugin install workflow@ztsia --scope project`, then run
+`/workflow:setup` in a session. It writes the project's `CLAUDE.md`, `.claude/settings.json`, its
+docs and QA's tooling from the templates, and moves a project that has its own copies of the
+agents, skills and scripts onto the plugin.
 
-The security plugins, once per machine and once per cloud environment:
-- **Locally:** `claude plugin install claude-security@claude-plugins-official` and
-  `claude plugin install security-guidance@claude-plugins-official` (user scope, the default).
-- **In the cloud:** paste `scripts/cloud-setup.sh` into the environment's setup script at
-  claude.ai/code. Cloud sessions don't install the plugins a repository enables, which is why the
-  rest of the kit is plain files in `.claude/`; a plugin folder under `~/.claude/skills/` does load.
+**In the cloud:** paste `plugins/workflow/scripts/cloud-setup.sh` into the environment's setup
+script at claude.ai/code. Cloud sessions don't install the plugins a repository enables; a plugin
+folder under `~/.claude/skills/` does load.
+
+## What a project keeps
+
+The plugin holds what's true of every project; the project holds what's true of it alone, and wins:
+
+| In the project | What it holds |
+|---|---|
+| `CLAUDE.md` | The project, its non-negotiables, stack, commands and layout, and an *Overrides* section for where it departs from `rules.md` |
+| `docs/workflow/<skill>.md` | What the project adds to or overrides in one skill: its stack, its patterns, a rule it chose |
+| `docs/workflow/<skill>/<path>` | A refreshed copy of a skill's file (a vendor note, a stack note, the shadcn docs), which replaces the plugin's until the plugin catches up |
+| `.claude/claude-security-guidance.md` | The project's security rules, read by `security-guidance`'s reviews |
+| `qa/`, `scripts/mutants.mjs`, `scripts/session-setup.sh` | QA's tooling and the project's own session setup, adapted from the templates |
+
+A refresh or a lesson that holds for every project goes back here as a PR, queued in the project's
+`docs/local.md` when the session can't open it.
+
+## Updating
+
+Every merged change bumps `version` in `plugins/workflow/.claude-plugin/plugin.json`; an installed
+copy updates only when it changes. Third-party marketplaces don't update themselves, so a project
+moves to a new version when its owner runs `claude plugin update workflow@ztsia`, between slices.
+A cloud environment picks up the new version when its setup script runs again.
 
 ## Where the rules came from
 

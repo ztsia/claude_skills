@@ -1,0 +1,27 @@
+{
+  "env": {
+    "ENABLE_STOP_REVIEW": "0"
+  },
+  "extraKnownMarketplaces": {
+    "ztsia": {
+      "source": { "source": "github", "repo": "ztsia/workflow" }
+    }
+  },
+  "enabledPlugins": {
+    "workflow@ztsia": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/session-setup.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}
