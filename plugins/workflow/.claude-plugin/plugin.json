@@ -1,0 +1,7 @@
+{
+  "name": "workflow",
+  "version": "1.0.0",
+  "description": "A build workflow for Claude Code: the main session decides, subagents build, QA checks, and every session hands off to the next. Agents, skills for QA, UI, data, model calls and security, and the session rules.",
+  "author": { "name": "ztsia" },
+  "repository": "https://github.com/ztsia/workflow"
+}

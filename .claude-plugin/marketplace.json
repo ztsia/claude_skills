@@ -1,0 +1,12 @@
+{
+  "name": "ztsia",
+  "owner": { "name": "ztsia" },
+  "description": "The workflow plugin: a build workflow for Claude Code.",
+  "plugins": [
+    {
+      "name": "workflow",
+      "source": "./plugins/workflow",
+      "description": "A build workflow for Claude Code: the main session decides, subagents build, QA checks, and every session hands off to the next."
+    }
+  ]
+}
