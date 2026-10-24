@@ -1,7 +1,7 @@
 ---
 name: qa-eyes
 description: QA's human-eyes pass. Looks at each changed screen at full size, one at a time, and each journey tap's filmstrip, as the person who'll use it would, and answers fixed questions about them in writing. Spawned by qa-reviewer from the qa skill's template, with the diff report's list of changed screens. Never runs tests or reads source.
-tools: Read, Glob, Write
+tools: Read, Glob, Write, Agent
 model: opus
 effort: high
 ---
@@ -63,3 +63,8 @@ entry and its verdict, worst first. Your final message is that table and the cou
 
 `wrong` means a person would be misled, stuck or put off; `look again` means it works but reads
 worse than it should. Never edit anything but `eyes.md`, and never mark a screen you didn't open.
+
+With more than about 10 entries, split them across `qa-eyes` subagents: give each the same report,
+a disjoint list of entries and filmstrips, and these instructions, and have it return its sections
+in its final message instead of writing a file. Then write `eyes.md` from their sections, with the
+one table of every entry.

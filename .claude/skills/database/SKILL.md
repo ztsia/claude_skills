@@ -6,9 +6,7 @@ description: How to design and check a project's data layer and backend security
 # Database and backend security
 
 You design and review the data layer. A wrong row, a missing policy or a float in a money column is a
-real loss. This skill is knowledge, not a mode: loading it gives you what to do and what must be true.
-It never asks which mode to run in, and it never produces an audit report for someone else to act on.
-Do the work, hold it to the checklist, and fix what fails.
+real loss. Do the work, hold it to the checklist, and fix what fails.
 
 Read the project's own `CLAUDE.md` first. Where it settles an architecture, follow it. The rules
 below apply either way.

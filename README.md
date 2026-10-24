@@ -14,9 +14,10 @@ project mid-slice.
 | `.claude/agents/qa-eyes.md` | The eyes pass: each changed screen and each tap's filmstrip, looked at as a person would, with fixed questions |
 | `.claude/agents/scout.md` | Cheap Haiku lookups over long logs or unfamiliar code |
 | `.claude/skills/qa/` | How a slice is QA'd: diff-driven and measured, mechanical checks first, the helpers' templates, the reviewer, escapes and the retro, the three fix tiers, the published report |
-| `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist |
+| `.claude/skills/uiux/` | shadcn/ui components, one set of shared patterns, calm card-based structure (what's primary, facts vs actions, a block per kind), the size hierarchy, and the phone-first checklist. Its shadcn docs are re-pulled from shadcn's repo by `scripts/refresh.mjs` once they're 90 days old or the project's components or base library differ |
 | `.claude/skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |
-| `.claude/skills/dataflow/`, `.claude/skills/prompt/` | Client state; prompts a product sends to a model |
+| `.claude/skills/llm/` | Model calls in a product: prompts, checking an existing prompt, API errors, caching, cost, moving models, and evals (`docs/evals.md`), plus dated notes per vendor in `docs/vendors/` (Anthropic, OpenAI, Google) that a session refreshes from the official docs once they're 90 days old or a project calls a model they don't list |
+| `.claude/skills/dataflow/` | Client state |
 | `.claude/settings.json`, `scripts/session-start.sh` | The SessionStart hook: points a session at the handoff and the newest slice branch |
 | `scripts/usage.mjs` | What a session cost, by agent and model, from the transcripts; `--log <slice>` keeps a row in `docs/usage.md` |
 | `scripts/qa-report.mjs` | Renders QA's results into the report page the `qa` skill publishes |
@@ -80,3 +81,9 @@ with it:
   (a deploy, resume, offline, a slow network, 200% text), on their first run, found text drawn over
   text at 200% font size on three screens. The breakage checks, on theirs, found a row lock no test
   held.
+- **Date every model fact, and refresh it.** The `llm` skill's first vendor docs (as `prompt`) were
+  copies of each vendor's guide, written for Claude Opus 4.6, GPT-5 and Gemini 3. By October 2026
+  the newest models rejected or ignored three things they taught: sampling parameters
+  (`temperature`), prefilled replies and thinking budgets. On Claude 5.5 each is an HTTP 400. The
+  named frameworks they picked between (CRAFT, CO-STAR) appear in no vendor's guide. The notes are
+  now short, dated and sourced, with the principles kept apart, so a refresh touches only the facts.
