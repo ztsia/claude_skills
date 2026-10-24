@@ -19,7 +19,6 @@ from the projects that proved it (Sen's build first).
 | `skills/database/` | Data layer and backend security: RLS per request, on plain Postgres and on Supabase; every route in one table, swept |
 | `skills/llm/` | Model calls in a product: prompts, checking an existing prompt, API errors, caching, cost, moving models and evals, with dated notes per vendor (Anthropic, OpenAI, Google) refreshed from the official docs |
 | `skills/security/` | A product's own code without vulnerabilities, with dated notes per stack (TypeScript, Python, Go), of which a session reads only the one in use |
-| `skills/dataflow/` | Client state |
 | `skills/setup/` | `/workflow:setup`: sets a project up, or moves one with its own copies onto the plugin |
 | `scripts/usage.mjs` | What a session cost, by agent and model; `--log <slice>` keeps a row in the project's `docs/usage.md` |
 | `scripts/qa-report.mjs` | Renders QA's results into the report page the `qa` skill publishes |

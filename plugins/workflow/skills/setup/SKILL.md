@@ -45,7 +45,7 @@ plugin's agents and skills are namespaced, so `qa` and `workflow:qa` sit side by
 ones go. Move a project only between slices, never on a slice's branch.
 
 1. **Agents and skills.** For each of `.claude/agents/{implementer,qa-reviewer,qa-eyes,scout}.md` and
-   `.claude/skills/{qa,uiux,database,llm,security,dataflow}/`, compare it with the plugin's version:
+   `.claude/skills/{qa,uiux,database,llm,security}/`, compare it with the plugin's version:
    `git diff --no-index <project copy> "${CLAUDE_PLUGIN_ROOT}/<agents|skills>/<name>"`. Sort each
    difference:
    - **true of this project only** (its stack, its patterns, a rule it chose): into
@@ -56,7 +56,8 @@ ones go. Move a project only between slices, never on a slice's branch.
      with it
    - **older than the plugin's**: dropped
 
-   Then delete the project's copies. Keep any agent or skill the plugin doesn't have.
+   Then delete the project's copies, and `.claude/skills/dataflow/`, which the workflow no longer
+   uses. Keep any other agent or skill the plugin doesn't have.
 2. **`CLAUDE.md`.** Delete the parts the plugin's rules now hold: *Session rotation*, *Models and
    subagents*, the owner's general rules, the general conventions and the *Skills* table. Keep the
    project's own facts, in `templates/CLAUDE.md`'s sections. Where the project departs from the
