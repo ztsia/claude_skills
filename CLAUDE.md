@@ -37,3 +37,6 @@ From the repo root, before a push:
 | `claude plugin validate .` and `claude plugin validate plugins/workflow` | The manifests, and every agent's and skill's frontmatter (an agent whose YAML fails to parse silently loses its model and tools) |
 | `claude --plugin-dir plugins/workflow`, from a test project | A session with this checkout of the plugin: the rules arrive, `/agents` lists `workflow:*` |
 | `bash -n plugins/workflow/scripts/*.sh`, `node --check` on each `.mjs` | The scripts parse |
+| `{ git ls-files plugins/workflow ':!plugins/workflow/files.txt' \| sed 's\|^plugins/workflow/\|\|'; echo files.txt; } \| sort > plugins/workflow/files.txt` | Regenerates the plugin's file list after adding, moving or deleting a file. `cloud-setup.sh` fetches the files it lists when a clone fails, since the cloud proxy refuses GitHub's API for a repository the session doesn't have attached |
+
+CI (`.github/workflows/check.yml`) runs the file list, script and `rules.md` checks on every push.

@@ -66,7 +66,10 @@ A refresh or a lesson that holds for every project goes back here as a PR, queue
 Every merged change bumps `version` in `plugins/workflow/.claude-plugin/plugin.json`; an installed
 copy updates only when it changes. Third-party marketplaces don't update themselves, so a project
 moves to a new version when its owner runs `claude plugin update workflow@ztsia`, between slices.
-A cloud environment picks up the new version when its setup script runs again.
+A cloud environment caches its setup for about seven days and runs it again sooner only when its
+setup script or allowed hosts change. To move one to a new version now, edit any line of its setup
+script (a comment will do) and start a new session; until then the plugin's hook names the newer
+version at the start of each cloud session.
 
 ## Where the rules came from
 
